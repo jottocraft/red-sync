@@ -1,10 +1,9 @@
 {
-  "name": "red-sync",
+  "name": "vlc-sync",
   "productName": "VLC Sync (beta)",
   "description": "Syncs VLC playback across devices",
   "author": "jottocraft",
   "version": "1.0.6",
-  "repository": "jottocraft/red-sync",
   "main": "main.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
