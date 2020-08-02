@@ -1,0 +1,47 @@
+{
+  "name": "red-sync",
+  "productName": "VLC Sync (beta)",
+  "description": "Syncs VLC playback across devices",
+  "author": "jottocraft",
+  "version": "1.0.6",
+  "repository": "jottocraft/red-sync",
+  "main": "main.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "electron-forge start",
+    "package": "electron-forge package",
+    "make": "electron-forge make"
+  },
+  "devDependencies": {
+    "@electron-forge/cli": "^6.0.0-beta.52",
+    "@electron-forge/maker-deb": "^6.0.0-beta.52",
+    "@electron-forge/maker-rpm": "^6.0.0-beta.52",
+    "@electron-forge/maker-squirrel": "^6.0.0-beta.52",
+    "@electron-forge/maker-zip": "^6.0.0-beta.52",
+    "electron": "^9.1.0"
+  },
+  "dependencies": {
+    "electron-is-dev": "^1.2.0",
+    "electron-squirrel-startup": "^1.0.0",
+    "glob": "^7.1.6",
+    "sudo-prompt": "^9.2.1",
+    "update-electron-app": "^1.5.0"
+  },
+  "config": {
+    "forge": {
+      "packagerConfig": {
+        "icon": "favicon.ico"
+      },
+      "makers": [
+        {
+          "name": "@electron-forge/maker-squirrel",
+          "config": {
+            "title": "VLC Sync (beta)",
+            "iconUrl": "https://player.red.jottocraft.com/favicon.ico",
+            "setupIcon": "favicon.ico"
+          }
+        }
+      ]
+    }
+  }
+}

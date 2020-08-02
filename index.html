@@ -1,0 +1,170 @@
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <link rel="shortcut icon" href="app/build.png" type="image/png">
+
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Extended" rel="stylesheet">
+    <link type="text/css" rel="stylesheet" href="https://cdn.jottocraft.com/fluid/v4.min.css"
+        media="screen,projection" />
+
+    <!--OpenGraph -->
+    <meta property="og:url" content="https://sync.red.jottocraft.com" />
+    <meta property="og:title" content="VLC Sync" />
+    <meta property="og:description" content="Sync VLC playback across devices" />
+    <meta property="og:image" content="https://sync.red.jottocraft.com/logo.png" />
+
+    <title>VLC Sync</title>
+
+    <meta charset="utf-8">
+    <meta name="description" content="Sync VLC playback across devices">
+    <meta name="author" content="jottocraft">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <script async src="https://cdn.jottocraft.com/fluid/assets/tinycolor.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+    <script src="https://cdn.jottocraft.com/fluid/v4.min.js"></script>
+
+    <style>
+        /* Header */
+        #header {
+            color: var(--elementText);
+            padding: 100px;
+            padding-bottom: 120px;
+            margin-bottom: 125px;
+            text-align: center;
+        }
+
+        #header h1 {
+            display: inline-block;
+            vertical-align: middle;
+        }
+
+        .title img {
+            height: 98px;
+            vertical-align: middle;
+            margin-right: 22px;
+        }
+
+        #header .title {
+            margin-bottom: 40px;
+        }
+
+        /* Content Blocks */
+        .block {
+            overflow: hidden;
+            margin-bottom: 200px;
+        }
+
+        .container .block .description>*:nth-child(1) {
+            margin-top: 0px;
+        }
+
+        .container .block .description>*:nth-last-child(1) {
+            margin-bottom: 0px;
+        }
+
+        .container .block .description p {
+            font-size: 20px;
+            color: var(--lightText);
+        }
+
+        /* Large content blocks */
+        .container .block:not(.small)>img {
+            width: 28%;
+            max-width: 250px;
+        }
+
+        .container .block:not(.small)>.description {
+            overflow: hidden;
+        }
+
+        .container .block:not(.small):nth-child(odd)>img,
+        .container .block.left:not(.small):nth-child(even)>img {
+            float: left;
+            margin-right: 48px;
+            margin-left: 0;
+        }
+
+        .container .block:not(.small):nth-child(even)>img,
+        .container .block.right:not(.small):nth-child(odd)>img {
+            float: right;
+            margin-left: 48px;
+            margin-right: 0;
+        }
+
+        .container .block:not(.small) .description h3 {
+            font-size: 2.6rem;
+        }
+
+        /* Small content blocks */
+        .container .block.small .description h3 {
+            font-size: 2.2rem;
+        }
+
+        .container .block.small {
+            text-align: center;
+            display: inline-block;
+        }
+
+        .container .block.small img {
+            height: 150px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+
+
+<body>
+
+    <div id="header">
+        <div class="content">
+            <div class="title">
+                <img src="app/icon.svg" />
+                <h1>VLC Sync</h1>
+            </div>
+            <div class="row">
+                <button id="dtpsInstallBtn"
+                    onclick="window.location.href = 'http://update.red.jottocraft.com/download';"
+                    class="btn"><i class="material-icons">file_download</i> Download the latest version</button>
+                <button class="btn outline" onclick="window.location.href = 'https://github.com/jottocraft/red-sync';"><i
+                        class="material-icons">code</i> Source code</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="row">
+            <div class="block small six columns">
+                <img src="assets/undraw_media_player_ylg8.svg" />
+                <div class="description">
+                    <h3>Synced playback</h3>
+                    <p>VLC Sync syncs playback across devices in real time</p>
+                </div>
+            </div>
+
+            <div class="block small six columns">
+                <img src="assets/undraw_video_files_fu10.svg" />
+                <div class="description">
+                    <h3>Local files</h3>
+                    <p>VLC Sync uses VLC to play high-quality local video files</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <br /><br /><br /><br />
+    <div style="text-align: center; padding: 50px 0px;">
+        <img style="height: 45px; margin-right: 20px; vertical-align: middle;"
+            src="https://cdn.jottocraft.com/images/footerImage.png" />
+        <h5 style="display: inline-block; vertical-align: middle;">jottocraft</h5>
+        <p>(c) jottocraft 2020. All rights reserved.&nbsp;&nbsp;<a href="https://github.com/jottocraft/red-sync">source
+                code</a>&nbsp;&nbsp;<a href="https://github.com/jottocraft/red-sync/blob/master/LICENSE">license</a></p>
+    </div>
+
+
+</body>
+
+</html>

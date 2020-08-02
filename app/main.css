@@ -1,0 +1,56 @@
+#groupList {
+    width: 400px;
+    height: 450px;
+    border: 2px solid var(--elements);
+    border-radius: 10px;
+    margin: 50px auto;
+    padding: 10px 20px;
+}
+
+#groupList .group {
+    text-align: left;
+    margin: 10px 0px;
+}
+
+#groupList .group .name {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: inline-block;
+    max-width: calc(100% - 40px);
+}
+
+#groupList .group a.join {
+    float: right;
+    cursor: pointer;
+}
+
+.instructions {
+    width: 400px;
+    text-align: left;
+    margin: 50px auto;
+}
+
+.loadingScreen .progress {
+  max-width: 600px;
+  width: calc(100% - 40px);
+  margin-top: 75px;
+  display: inline-block;
+}
+
+#settings, #createGroup {
+    width: 100%; 
+    min-height: calc(100vh - 60px); 
+    position: absolute; 
+    z-index: 9999;
+    top: 60px;
+    left: 0px;
+    padding: 20px;
+    padding-top: 0px;
+    background-color: var(--background);
+}
+
+.userID {
+    font-family: monospace, var(--textFont);
+    font-size: 10px;
+}
