@@ -1,8 +1,10 @@
-const { app, BrowserWindow, autoUpdater, dialog, ipcMain } = require('electron');
+const { app, BrowserWindow, autoUpdater, dialog } = require('electron');
 const isDev = require('electron-is-dev');
+const path = require("path");
+const fs = require("fs");
 
 //Prevent app from running on setup
-if (require('electron-squirrel-startup')) return app.quit();
+if(require('electron-squirrel-startup')) return;
 
 const server = "https://update.red.jottocraft.com"
 const feed = `${server}/update/${process.platform}/${app.getVersion()}`
@@ -33,6 +35,21 @@ if (!isDev) {
   setInterval(() => {
     autoUpdater.checkForUpdates();
   }, 600000);
+
+  //Set start menu tile color
+  try {
+    var sqpath = path.join(__dirname, "..", "..", "..");
+    if (fs.existsSync(path.join(sqpath, "VLC Sync (beta).exe"))) {
+      fs.copyFile(path.join(__dirname, "tile.png"), path.join(sqpath, "tile.png"), (err) => {
+        fs.copyFile(path.join(__dirname, "smallTile.png"), path.join(sqpath, "smallTile.png"), (err) => {
+          fs.copyFile(path.join(__dirname, "VLC Sync (beta).VisualElementsManifest.xml"), path.join(sqpath, "VLC Sync (beta).VisualElementsManifest.xml"), (err) => {
+            if (err) throw err;
+            console.log('start menu tile set');
+          });
+        });
+      });
+    }
+  } catch(e) {}
 }
 
 //Disable media key support
@@ -67,11 +84,6 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit()
   }
-})
-
-ipcMain.on('app_quit', (event, info) => {
-  console.log("got app quit")
-  app.quit()
 })
 
 app.on('activate', () => {

@@ -1,14 +1,15 @@
 const fs = require("fs");
-const { shell, remote, app, ipcRenderer } = require('electron');
+const { shell, remote } = require('electron');
 const path = require("path");
 const { execFile, exec } = require("child_process");
-const { dialog } = require('electron').remote;
+const { encode } = require("punycode");
+const { dialog, app } = require('electron').remote;
 
 //Latest VLC module version
 const LATEST_MODULE_VER = 106;
 
 //Local anime folder and VLC exe path vars
-var ANIME_FOLDER = window.localStorage.animeFolderPath || path.join(__dirname, "..", "..", "/anime");
+var ANIME_FOLDER = window.localStorage.animeFolderPath || path.join(app.getPath("documents"), "Anime");
 var VLC_EXE = window.localStorage.vlcExePath || 'C:\\Program Files\\VideoLAN\\VLC\\vlc.exe';
 
 //Database flags
@@ -17,10 +18,10 @@ var flags = {
 };
 
 //Group variables
-var groups, group, groupStatusDB, groupMemberDB, stats = {};
+var groups, group, stats = {}, viewCounter = 0, usersOnline = [], userStatus = "online", dbConnection = false, hostWasOnline = false;
 
 //VLC variables
-var file, vlcOpen, vlcProcess, vlcStatus, localTrackSync = window.localStorage.localTrackSync != "false" ? true : false;
+var file, vlcOpen, vlcProcess, vlcStatus, fileOverrides = {}, localTrackSync = window.localStorage.localTrackSync != "false" ? true : false;
 
 //HTTP request auth and configuration
 jQuery.ajaxSetup({
@@ -31,6 +32,10 @@ jQuery.ajaxSetup({
 
 var failCount = null; //# of times VLC failed to get a response from VLC (quit app after 3 consecutive fails)
 var videoFail = 0; //# of times VLC failed to load the selected video file
+
+if (window.localStorage.getItem("fileOverrides")) {
+    fileOverrides = JSON.parse(window.localStorage.getItem("fileOverrides"));
+}
 
 setInterval(function () {
     if (vlcOpen) { //Only make web requests when VLC is open
@@ -66,7 +71,8 @@ setInterval(function () {
                     } else if (group.status.state && group.status.state.startsWith("play|")) {
                         //Calculate expected time from database, update database time if it has been changed by allowedOffset * 2
                         let time = (((getServerTime().getTime() - Number(group.status.state.split("|")[2])) / 1000) * groupRate) + Number(group.status.state.split("|")[1]);
-                        if (Math.abs(time - vlcStatus.time) > (allowedOffset * 2)) {
+                        console.log(vlcStatus.time - time)
+                        if (Math.abs(vlcStatus.time - time) > (allowedOffset * 2)) {
                             firebase.database().ref("/groups/" + group.id + "/status/state").set("play|" + (vlcStatus.time - reqOffset) + "|" + getServerTime().getTime());
                         }
                     } else {
@@ -171,8 +177,8 @@ setInterval(function () {
 
                             if (time <= vlcStatus.length) {
                                 if (vlcStatus.state == "paused") jQuery.get("http://localhost:9090/requests/jottocraft.json?command=play");
-                                if (Math.abs(time - vlcStatus.time) > allowedOffset) {
-                                    jQuery.get("http://localhost:9090/requests/jottocraft.json?command=directseek&val=" + (time + reqOffset));
+                                if (Math.abs(vlcStatus.time - time) > allowedOffset) {
+                                    jQuery.get("http://localhost:9090/requests/jottocraft.json?command=directseek&val=" + (time + reqOffset + 0.1));
                                 }
                             }
                         } else if (group.status.state.startsWith("pause|")) {
@@ -212,13 +218,17 @@ setInterval(function () {
             if (failCount !== null) {
                 failCount++;
 
-                if (failCount == 3) {
+                if (failCount == 30) {
                     window.close();
                 }
             }
         })
     }
 }, 100);
+
+function capitalizeFirstLetter(string) {
+    return string.charAt(0).toUpperCase() + string.slice(1);
+}
 
 function displayGroup(groupID) {
     //set active group
@@ -228,7 +238,24 @@ function displayGroup(groupID) {
     $("#leaveBtn").show();
     $("#groupName").text(group.status.name);
 
-    firebase.database().ref("/groups/" + group.id + "/members/" + firebase.auth().currentUser.uid).onDisconnect().remove();
+    firebase.database().ref('.info/connected').on('value', function (snapshot) {
+        // If we're not currently connected, don't do anything.
+        if (snapshot.val() == false) {
+            dbConnection = false;
+            return;
+        };
+
+        // If we are currently connected, then use the 'onDisconnect()' 
+        // method to add a set which will only trigger once this 
+        // client has disconnected by closing the app, 
+        // losing internet, or any other means.
+        firebase.database().ref("/groups/" + group.id + "/presence/" + firebase.auth().currentUser.uid).onDisconnect().remove().then(function () {
+            // We can now safely set ourselves as 'online' knowing that the
+            // server will mark us as offline once we lose connection.
+            dbConnection = true;
+            firebase.database().ref("/groups/" + group.id + "/presence/" + firebase.auth().currentUser.uid).set(userStatus);
+        });
+    });
 
     load("Waiting for VLC to open...");
 
@@ -237,116 +264,133 @@ function displayGroup(groupID) {
 
         load("Getting group status...");
 
-        groupStatusDB = firebase.database().ref('/groups/' + groupID + '/status');
-        groupStatusDB.on('value', function (snapshot) {
+        firebase.database().ref('/groups/' + groupID + '/status').on('value', function (snapshot) {
             group.status = snapshot.val();
-
-            updateGroupSettings();
-
-            $("#groupName").text(group.status.name);
-            if (group.status.video) {
-                if (firebase.auth().currentUser.uid == group.status.host) {
-                    //host video selected
-                    showLobby("sync", "Syncing playback", `
-                        <p>The video you're playing in VLC is syncing to the members of this group.</p>
-                        <br />
-                        <p><b>Synced users</b>: <span id="statsReady">${stats.ready.length}</span></p>
-                        <p><b>Users downloading</b>: <span id="statsDownloading">${stats.downloading.length}</span></p>
-                    `, true);
-                } else {
-                    //Video selected
-                    if (file && file.endsWith(group.status.video)) {
-                        showPlayer(group);
-                    } else {
-                        scanForAnime(group.status.video, function (files) {
-                            if (files.length == 1) {
-                                file = files[0];
-
-                                //Video downloaded
-                                showPlayer(group);
-                            } else if (!files.length) {
-                                //Video needs to be downloaded
-                                file = null;
-                                showLobby("file_download", "Download video", `
-                                    <div class="instructions">
-                                        ${group.status.download ? `
-                                            <p><b>Download File</b><p>
-                                            <p>The host has provided a link to download the video file. <a onclick="shell.openExternal('${group.status.download}')" href="#">Click here</a> to open that link in your browser.</p>
-                                            <br />
-                                        ` : ``}
-                                        <p><b>Copy the file to the anime folder</b><p>
-                                        <p>Copy the folder or file(s) you downloaded, without renaming it, to the anime folder at <span class="animeFolderPath">${ANIME_FOLDER}</span>.</p>
-                                        <br />
-                                        <button onclick="moveAnimeFolder()" class="btn outline"><i class="material-icons">folder</i> Change anime folder location</button>
-                                        <br /><br />
-                                        <button onclick="showPlayer(group)" class="btn">Done</button>
-                                    </div>
-                                `, true);
-                                firebase.database().ref("/groups/" + group.id + "/members/" + firebase.auth().currentUser.uid).set("downloading");
-                            } else if (files.length > 1) {
-                                file = null;
-                                showLobby("file_copy", "File name conflict", `
-                                    <p>Multiple files with the name "${group.status.video}" were found. Make sure you aren't renaming the file(s) and that the file names in the anime folder are unique.</p>
-                                    <br />
-                                    <button onclick="showPlayer(group)" class="btn">Try again</button>
-                                `, true);
-                                firebase.database().ref("/groups/" + group.id + "/members/" + firebase.auth().currentUser.uid).set("error");
-                            }
-                        });
-                    }
-                }
-            } else {
-                //Host hasn't selected a video
-                if (firebase.auth().currentUser.uid == group.status.host) {
-                    showLobby("file_copy", "Open a file in VLC", `
-                        <p>Start playing a file in VLC to begin the video sync</p>
-                        <br />
-                        <p><b>Users waiting</b>: <span id="statsWaiting">${stats.waiting.length}</span></p>
-                    `, true);
-                } else if (!group.status.host) {
-                    showLobby("person_outline", "Host disconnected", `
-                        <p>The host of this group has left. You can take wait for the host to rejoin or take control of the group in the settings menu.</p>
-                        <br />
-                        <button onclick="host()" class="btn outline"><i class="material-icons">perm_identity</i> Take control</button>
-                    `, true);
-                } else {
-                    showLobby("hourglass_empty", "Waiting for host...", "The host hasn't selected a video to play yet");
-                    firebase.database().ref("/groups/" + group.id + "/members/" + firebase.auth().currentUser.uid).set("waiting");
-                }
-            }
+            updateUI();
         });
     });
 
-    groupMemberDB = firebase.database().ref('/groups/' + groupID + '/members');
-    groupMemberDB.on('value', function (snapshot) {
+    firebase.database().ref('/groups/' + groupID + '/presence').on('value', function (snapshot) {
         var users = snapshot.val();
 
         group.members = users;
 
-        stats = {
-            downloading: [],
-            plugin: [],
-            waiting: [],
-            ready: [],
-            error: []
-        }
+        stats = {};
+
+        usersOnline = [];
+        viewCounter = 0;
 
         if (users) {
             Object.keys(users).forEach(user => {
-                if (users[user] == "downloading") stats.downloading.push(user);
-                if (users[user] == "plugin") stats.plugin.push(user);
-                if (users[user] == "waiting") stats.waiting.push(user);
-                if (users[user] == "ready") stats.ready.push(user);
-                if (users[user] == "error") stats.error.push(user);
-            });
+                usersOnline.push(user);
+                if (user !== group.status.host) viewCounter++;
 
-            $("#statsDownloading").text(stats.downloading.length);
-            $("#statsPlugin").text(stats.plugin.length);
-            $("#statsWaiting").text(stats.waiting.length);
-            $("#statsReady").text(stats.ready.length);
-            $("#statsError").text(stats.error.length);
+                if (!stats[users[user]]) stats[users[user]] = 0;
+                stats[users[user]]++;
+
+                $("#stats" + capitalizeFirstLetter(users[user])).text(stats[users[user]]);
+            });
         }
+
+        if (usersOnline.includes(group.status.host) !== hostWasOnline) {
+            //Change in host status
+            hostWasOnline = usersOnline.includes(group.status.host);
+            updateUI();
+        }
+
+        $("#viewerCounter").text(viewCounter);
+        $("#viewCounterWrapper").show();
     });
+}
+
+function updateUI() {
+    updateGroupSettings();
+
+    $("#groupName").text(group.status.name);
+    if (group.status.video && usersOnline.includes(group.status.host)) {
+        if (firebase.auth().currentUser.uid == group.status.host) {
+            //host video selected
+            showLobby("sync", "Syncing playback", `
+                    <p>The video you're playing in VLC is syncing to the members of this group.</p>
+                    <br />
+                    <p><b>Synced users</b>: <span id="statsReady">${stats.ready || 0}</span></p>
+                    <p><b>Users downloading</b>: <span id="statsDownloading">${stats.downloading || 0}</span></p>
+                `, true);
+            setUserStatus("hosting");
+        } else {
+            //Video selected
+            if (file && file.endsWith(group.status.video)) {
+                showPlayer(group);
+            } else {
+                scanForAnime(group.status.video, function (files) {
+                    if (fileOverrides[group.status.video] && fs.existsSync(fileOverrides[group.status.video])) {
+                        files = [fileOverrides[group.status.video]];
+                    }
+
+                    if (files.length == 1) {
+                        file = files[0];
+
+                        //Video downloaded
+                        showPlayer(group);
+                    } else if (!files.length) {
+                        //Video needs to be downloaded
+                        file = null;
+                        showLobby("file_download", "Download video", `
+                                <div class="instructions">
+                                    ${group.status.download ? `
+                                        <p><b>Download File</b><p>
+                                        <p>The host has provided a link to download the video file. <a onclick="shell.openExternal('${group.status.download}')" href="#">Click here</a> to open that link in your browser.</p>
+                                        <br />
+                                    ` : ``}
+                                    <p><b>Copy the file to the anime folder</b><p>
+                                    <p>Copy the folder or file(s) you downloaded, without renaming it, to the anime folder at <span class="animeFolderPath">${ANIME_FOLDER}</span>.</p>
+                                    <br />
+                                    <button onclick="moveAnimeFolder()" class="btn outline"><i class="material-icons">folder</i> Change anime folder location</button>
+                                    <br /><br />
+                                    <button onclick="manuallySetFile()" class="btn outline"><i class="material-icons">insert_drive_file</i> Manually set file location</button>
+                                    <br /><br /><br />
+                                    <button onclick="showPlayer(group)" class="btn">Done</button>
+                                </div>
+                            `, true);
+                        setUserStatus("downloading");
+                    } else if (files.length > 1) {
+                        file = null;
+                        showLobby("file_copy", "File name conflict", `
+                                <p>Multiple files with the name "${group.status.video}" were found. Make sure you aren't renaming the file(s) and that the file names in the anime folder are unique.</p>
+                                <br />
+                                <p>Or, you can select the file you want to load from the list below.</p>
+                                ${files.map(file => {
+                                    return `<p><a onclick="fileResolution('${encodeURI(group.status.video)}', '${encodeURI(file)}')" style="cursor: pointer">${file.replace(ANIME_FOLDER, "")}</a></p>`
+                                }).join("")}
+                                <br />
+                                <button onclick="showPlayer(group)" class="btn">Try again</button>
+                            `, true);
+                        setUserStatus("fileError");
+                    }
+                });
+            }
+        }
+    } else {
+        //Host hasn't selected a video
+        if (firebase.auth().currentUser.uid == group.status.host) {
+            showLobby("file_copy", "Open a file in VLC", `
+                    <p>Start playing a file in VLC to begin the video sync</p>
+                    <br />
+                    <p><b>Users waiting</b>: <span id="statsWaiting">${stats.waiting || 0}</span></p>
+                `, true);
+            setUserStatus("openFile");
+        } else if (!usersOnline.includes(group.status.host)) {
+            showLobby("person_outline", "Host disconnected", `
+                    <p>The host of this group has left. You can take wait for the host to rejoin or take control of the group in the settings menu.</p>
+                    <br />
+                    <button onclick="host()" class="btn outline"><i class="material-icons">perm_identity</i> Take control</button>
+                `, true);
+            setUserStatus("noHost");
+        } else {
+            showLobby("hourglass_empty", "Waiting for host...", "The host hasn't selected a video to play yet");
+            setUserStatus("waiting");
+        }
+    }
 }
 
 firebase.auth().onAuthStateChanged(function (user) {
@@ -396,6 +440,20 @@ firebase.auth().onAuthStateChanged(function (user) {
         });
     }
 });
+
+function fileResolution(video, fullPath) {
+    fileOverrides[decodeURI(video)] = decodeURI(fullPath);
+    window.localStorage.setItem("fileOverrides", JSON.stringify(fileOverrides));
+    showPlayer(group);
+}
+
+function setUserStatus(status) {
+    userStatus = status;
+
+    if (dbConnection) {
+        firebase.database().ref("/groups/" + group.id + "/presence/" + firebase.auth().currentUser.uid).set(userStatus);
+    }
+}
 
 var results = [];
 function scanForAnime(video, cb, folder = ANIME_FOLDER) {
@@ -489,7 +547,7 @@ function openVLC() {
                 <br />
                 <button id="installModBtn" class="btn"><i class="material-icons">security</i> Update the module</button>
             `, true);
-                firebase.database().ref("/groups/" + group.id + "/members/" + firebase.auth().currentUser.uid).set("plugin");
+                setUserStatus("module");
                 $("#installModBtn").click(() => {
                     installModule().then(() => {
                         openVLC().then(fResolve).catch(fReject);
@@ -504,7 +562,7 @@ function openVLC() {
                 <br />
                 <button id="installModBtn" class="btn"><i class="material-icons">security</i> Install the module</button>
             `, true);
-            firebase.database().ref("/groups/" + group.id + "/members/" + firebase.auth().currentUser.uid).set("plugin");
+            setUserStatus("module");
             $("#installModBtn").click(() => {
                 installModule().then(() => {
                     openVLC().then(fResolve).catch(fReject);
@@ -562,7 +620,7 @@ function showPlayer(group) {
         //Ready to show player
         if (group.status.state == "pause|0") {
             showLobby("schedule", "Waiting...", "The host is waiting for everyone to get ready. Video playback will begin automatically.");
-            firebase.database().ref("/groups/" + group.id + "/members/" + firebase.auth().currentUser.uid).set("ready");
+            setUserStatus("ready");
         } else {
             //Load video player
             if (group.status.state.startsWith("play|")) {
@@ -577,22 +635,27 @@ function showPlayer(group) {
             } else if (group.status.state.startsWith("pause|")) {
                 showLobby("pause", "VLC Paused", "The host has paused the video in VLC")
             }
-            firebase.database().ref("/groups/" + group.id + "/members/" + firebase.auth().currentUser.uid).set("ready");
+            setUserStatus("syncing");
         }
     } else if (group.status.video && !file) {
         //Try scanning for files again
-        scanForAnime(group.status.video, function (files) {
-            if (files.length == 1) {
-                file = files[0];
-                showPlayer(group);
-            } else if (files.length == 0) {
-                file = null;
-                fluid.alert("File not found", "The video file was not found in the anime folder. Make sure you followed all of the steps correctly and try again.", "warning");
-            } else if (files.length > 1) {
-                file = null;
-                fluid.alert("File name conflict", `Multiple files with the name "${group.status.video}" were found. Make sure you aren't renaming the file(s) and that the file names in the anime folder are unique.`, "warning");
-            }
-        });
+        if (fileOverrides[group.status.video] && fs.existsSync(fileOverrides[group.status.video])) {
+            file = fileOverrides[group.status.video];
+            showPlayer(group);
+        } else {
+            scanForAnime(group.status.video, function (files) {
+                if (files.length == 1) {
+                    file = files[0];
+                    showPlayer(group);
+                } else if (files.length == 0) {
+                    file = null;
+                    alert("The video file was not found in the anime folder. Make sure you followed all of the steps correctly and try again.");
+                } else if (files.length > 1) {
+                    file = null;
+                    alert(`Multiple files with the name "${group.status.video}" were found. Make sure you aren't renaming the file(s) and that the file names in the anime folder are unique.`);
+                }
+            });
+        }
     }
 }
 
@@ -615,11 +678,7 @@ function joinGroup(groupID) {
 
 function leaveGroup() {
     window.localStorage.removeItem("groupID");
-    clearData().then(() => {
-        readyToQuit = true;
-        window.onbeforeunload = null;
-        window.location.reload();
-    });
+    window.location.reload();
 }
 
 function showLobby(icon, title, description, htmlAllowed) {
@@ -658,7 +717,18 @@ function setGroupDownload() {
 
 function host() {
     firebase.database().ref("/groups/" + group.id + "/status/host").set(firebase.auth().currentUser.uid);
-    firebase.database().ref("/groups/" + group.id + "/members/" + firebase.auth().currentUser.uid).remove();
+}
+
+function manuallySetFile() {
+    dialog.showOpenDialog({
+        title: "Locate " + group.status.video,
+        buttonLabel: "Open anime file",
+        properties: ['openFile']
+    }).then(function (results) {
+        if (!results.canceled) {
+            fileResolution(encodeURI(group.status.video), encodeURI(results.filePaths[0]))
+        }
+    });
 }
 
 function moveAnimeFolder(cb) {
@@ -769,75 +839,5 @@ function loadGroups() {
     })
 }
 
-function clearData() {
-    console.log("called")
-    return new Promise((resolve, reject) => {
-        var isHost = group.status.host == firebase.auth().currentUser.uid;
-        var activeMembers = (group.members ? Object.keys(group.members).length : 0) + (group.status.host ? 1 : 0);
-        var tasks = [];
-
-        //Stop getting realtime data
-        if (groupMemberDB && groupMemberDB.off) groupMemberDB.off();
-        if (groupStatusDB && groupStatusDB.off) groupStatusDB.off();
-        console.log("b")
-        if ((group.createdBy == "anonymous") && (activeMembers <= 1)) {
-            //Anonymous group that needs to be deleted
-            tasks.push(firebase.database().ref("/groups/" + group.id).remove());
-        } else {
-            tasks.push(firebase.database().ref("/groups/" + group.id + "/members/" + firebase.auth().currentUser.uid).remove());
-
-            if (isHost) {
-                tasks.push(firebase.database().ref("/groups/" + group.id + "/status/audioTrack").remove());
-                tasks.push(firebase.database().ref("/groups/" + group.id + "/status/videoTrack").remove());
-                tasks.push(firebase.database().ref("/groups/" + group.id + "/status/spuTrack").remove());
-                tasks.push(firebase.database().ref("/groups/" + group.id + "/status/state").remove());
-                tasks.push(firebase.database().ref("/groups/" + group.id + "/status/video").remove());
-                tasks.push(firebase.database().ref("/groups/" + group.id + "/status/rate").remove());
-                tasks.push(firebase.database().ref("/groups/" + group.id + "/status/host").remove());
-            }
-        }
-
-        console.log(tasks)
-
-        Promise.allSettled(tasks).then(resolve);
-    })
-}
-
 var timerInterval = setInterval(calcOffset, 5000);
 calcOffset();
-var readyToQuit = false;
-window.onbeforeunload = (e) => {
-    try {
-        //Stop checking VLC
-        vlcOpen = false;
-
-        //Prepare warning interval
-        setTimeout(() => {
-            load("This shouldn't be taking this long. You'll probably have to force quit this app.");
-        }, 10000);
-
-        if (!readyToQuit && group) {
-            load("Leaving group...");
-
-            clearData().then(() => {
-                readyToQuit = true;
-                ipcRenderer.send('app_quit');
-                window.onbeforeunload = null;
-            }).catch(() => {
-                readyToQuit = true;
-                ipcRenderer.send('app_quit');
-                window.onbeforeunload = null;
-            });
-        } else {
-            readyToQuit = true;
-            window.onbeforeunload = null;
-            delete e['returnValue'];
-        }
-    } catch (err) {
-        console.error(err);
-        readyToQuit = true;
-        window.onbeforeunload = null;
-        delete e['returnValue'];
-        window.close();
-    }
-}

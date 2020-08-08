@@ -3,7 +3,7 @@
   "productName": "VLC Sync (beta)",
   "description": "Syncs VLC playback across devices",
   "author": "jottocraft",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "main": "main.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
@@ -36,7 +36,7 @@
           "name": "@electron-forge/maker-squirrel",
           "config": {
             "title": "VLC Sync (beta)",
-            "iconUrl": "https://player.red.jottocraft.com/favicon.ico",
+            "iconUrl": "https://sync.red.jottocraft.com/app/favicon.ico",
             "setupIcon": "favicon.ico"
           }
         }
