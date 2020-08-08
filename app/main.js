@@ -12,13 +12,13 @@ const feed = `${server}/update/${process.platform}/${app.getVersion()}`
 autoUpdater.on('update-downloaded', (event, releaseNotes, releaseName) => {
   const dialogOpts = {
     type: 'info',
-    buttons: ['Restart'],
+    buttons: ['Update', 'Install'],
     title: 'Application Update',
     detail: 'A new version has been downloaded. Restart the application to apply the updates.'
   }
 
   dialog.showMessageBox(dialogOpts).then((returnValue) => {
-    if (returnValue.response === 0) autoUpdater.quitAndInstall();
+    autoUpdater.quitAndInstall();
   });
 });
 
