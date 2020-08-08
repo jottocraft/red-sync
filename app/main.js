@@ -12,7 +12,7 @@ const feed = `${server}/update/${process.platform}/${app.getVersion()}`
 autoUpdater.on('update-downloaded', (event, releaseNotes, releaseName) => {
   const dialogOpts = {
     type: 'info',
-    buttons: ['Restart', 'Later'],
+    buttons: ['Restart'],
     title: 'Application Update',
     detail: 'A new version has been downloaded. Restart the application to apply the updates.'
   }
