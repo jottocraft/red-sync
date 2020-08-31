@@ -71,7 +71,6 @@ setInterval(function () {
                     } else if (group.status.state && group.status.state.startsWith("play|")) {
                         //Calculate expected time from database, update database time if it has been changed by allowedOffset * 2
                         let time = (((getServerTime().getTime() - Number(group.status.state.split("|")[2])) / 1000) * groupRate) + Number(group.status.state.split("|")[1]);
-                        console.log(vlcStatus.time - time)
                         if (Math.abs(vlcStatus.time - time) > (allowedOffset * 2)) {
                             firebase.database().ref("/groups/" + group.id + "/status/state").set("play|" + (vlcStatus.time - reqOffset) + "|" + getServerTime().getTime());
                         }
@@ -268,6 +267,10 @@ function displayGroup(groupID) {
             group.status = snapshot.val();
             updateUI();
         });
+
+        firebase.database().ref('/groups/' + groupID + '/access').on('value', function (snapshot) {
+            group.access = snapshot.val();
+        });
     });
 
     firebase.database().ref('/groups/' + groupID + '/presence').on('value', function (snapshot) {
@@ -279,6 +282,8 @@ function displayGroup(groupID) {
 
         usersOnline = [];
         viewCounter = 0;
+
+        $(".statCounter").text("0");
 
         if (users) {
             Object.keys(users).forEach(user => {
@@ -313,8 +318,8 @@ function updateUI() {
             showLobby("sync", "Syncing playback", `
                     <p>The video you're playing in VLC is syncing to the members of this group.</p>
                     <br />
-                    <p><b>Synced users</b>: <span id="statsReady">${stats.ready || 0}</span></p>
-                    <p><b>Users downloading</b>: <span id="statsDownloading">${stats.downloading || 0}</span></p>
+                    <p><b>Synced users</b>: <span class="statCounter" id="statsSyncing">${stats.syncing || 0}</span></p>
+                    <p><b>Users downloading</b>: <span class="statCounter" id="statsDownloading">${stats.downloading || 0}</span></p>
                 `, true);
             setUserStatus("hosting");
         } else {
@@ -360,8 +365,8 @@ function updateUI() {
                                 <br />
                                 <p>Or, you can select the file you want to load from the list below.</p>
                                 ${files.map(file => {
-                                    return `<p><a onclick="fileResolution('${encodeURI(group.status.video)}', '${encodeURI(file)}')" style="cursor: pointer">${file.replace(ANIME_FOLDER, "")}</a></p>`
-                                }).join("")}
+                            return `<p><a onclick="fileResolution('${encodeURI(group.status.video)}', '${encodeURI(file)}')" style="cursor: pointer">${file.replace(ANIME_FOLDER, "")}</a></p>`
+                        }).join("")}
                                 <br />
                                 <button onclick="showPlayer(group)" class="btn">Try again</button>
                             `, true);
@@ -376,14 +381,14 @@ function updateUI() {
             showLobby("file_copy", "Open a file in VLC", `
                     <p>Start playing a file in VLC to begin the video sync</p>
                     <br />
-                    <p><b>Users waiting</b>: <span id="statsWaiting">${stats.waiting || 0}</span></p>
+                    <p><b>Users waiting</b>: <span class="statCounter" id="statsWaiting">${stats.waiting || 0}</span></p>
                 `, true);
             setUserStatus("openFile");
         } else if (!usersOnline.includes(group.status.host)) {
             showLobby("person_outline", "Host disconnected", `
                     <p>The host of this group has left. You can take wait for the host to rejoin or take control of the group in the settings menu.</p>
                     <br />
-                    <button onclick="host()" class="btn outline"><i class="material-icons">perm_identity</i> Take control</button>
+                    ${!group.access.hostLocked ? `<button onclick="host()" class="btn outline"><i class="material-icons">perm_identity</i> Take control</button>` : ``}
                 `, true);
             setUserStatus("noHost");
         } else {
@@ -396,6 +401,11 @@ function updateUI() {
 firebase.auth().onAuthStateChanged(function (user) {
     if (user) {
         console.log(user);
+
+        fluid.login({
+            name: user.email || "Anonymous",
+            imageURL: user.photoURL
+        });
 
         function nextThing() {
             load("Getting group list...");
@@ -618,9 +628,10 @@ function installModule() {
 function showPlayer(group) {
     if (group.status.video && file) {
         //Ready to show player
+        setUserStatus("syncing");
+
         if (group.status.state == "pause|0") {
             showLobby("schedule", "Waiting...", "The host is waiting for everyone to get ready. Video playback will begin automatically.");
-            setUserStatus("ready");
         } else {
             //Load video player
             if (group.status.state.startsWith("play|")) {
@@ -635,7 +646,6 @@ function showPlayer(group) {
             } else if (group.status.state.startsWith("pause|")) {
                 showLobby("pause", "VLC Paused", "The host has paused the video in VLC")
             }
-            setUserStatus("syncing");
         }
     } else if (group.status.video && !file) {
         //Try scanning for files again
@@ -715,6 +725,21 @@ function setGroupDownload() {
     firebase.database().ref("/groups/" + group.id + "/status/download").set(download);
 }
 
+function setGroupAccess() {
+    var visibility = $("#groupVisibilitySetting").hasClass("active");
+    firebase.database().ref("/groups/" + group.id + "/access/visible").set(visibility);
+
+    var hostLocked = !$("#hostLockSetting").hasClass("active");
+    firebase.database().ref("/groups/" + group.id + "/access/hostLocked").set(hostLocked);
+}
+
+
+function deleteGroup() {
+    if ((group.createdBy == firebase.auth().currentUser.uid) && window.confirm("Are you sure you want to delete this group?")) {
+        firebase.database().ref("/groups/" + group.id).remove();
+    }
+}
+
 function host() {
     firebase.database().ref("/groups/" + group.id + "/status/host").set(firebase.auth().currentUser.uid);
 }
@@ -753,8 +778,10 @@ function addGroup() {
         firebase.database().ref("/groups/" + newID).set({
             createdBy: "anonymous",
             id: newID,
+            access: {
+                visible: true
+            },
             status: {
-                visible: true,
                 host: firebase.auth().currentUser.uid,
                 name: newName
             }
@@ -769,24 +796,14 @@ function addGroup() {
     }
 }
 
-function settings() {
-    $(".animeFolderPath").text(ANIME_FOLDER);
-
-    if (firebase.auth().currentUser.isAnonymous || !firebase.auth().currentUser.email) {
-        $("#settingsLoginText").html(`Signed in as anonymous user <span class="userID">${firebase.auth().currentUser.uid}</span>
-         <!--(<a style="cursor: pointer" onclick="logout();">Sign out</a>)-->`);
-    } else {
-        $("#settingsLoginText").html(`Signed in as ${firebase.auth().currentUser.email} (<a style="cursor: pointer" onclick="logout();">Sign out</a>)`);
-    }
-
-    updateGroupSettings();
-
-    $("#settings").show();
-    $("#settingsBtn").hide();
-    $("#backBtn").show();
-}
-
 function createGroup() {
+    if (firebase.auth().currentUser.isAnonymous) {
+        $("#isAnonymousWarning").show();
+        $("#groupAccessNotice").hide();
+    } else {
+        $("#isAnonymousWarning").hide();
+        $("#groupAccessNotice").show();
+    }
     $("#createGroup").show();
     $("#settingsBtn").hide();
     $("#backBtn").show();
@@ -799,13 +816,25 @@ function updateGroupSettings() {
         $("#groupNameSetting").val(group.status.name);
         $("#groupDownloadSetting").val(group.status.download);
 
+        if (group.access.visible) {
+            $("#groupVisibilitySetting").addClass("active");
+        } else {
+            $("#groupVisibilitySetting").removeClass("active");
+        }
+
+        if (!group.access.hostLocked) {
+            $("#hostLockSetting").addClass("active");
+        } else {
+            $("#hostLockSetting").removeClass("active");
+        }
+
         if (group.createdBy == firebase.auth().currentUser.uid) {
             $(".hostSettings.activeOwner").show();
         } else if (group.status.host == firebase.auth().currentUser.uid) {
             $(".hostSettings.activeHost").show();
         }
 
-        if (!group.hostLocked && (group.status.host !== firebase.auth().currentUser.uid)) {
+        if (!group.access.hostLocked && (group.status.host !== firebase.auth().currentUser.uid)) {
             $(".hostSettings.takeControl").show();
         }
     }
@@ -827,9 +856,18 @@ function loadGroups() {
             groups = data.val();
             var groupHTML = ``;
 
-            Object.values(groups).forEach(group => {
-                if (group.status && group.status.visible) {
-                    groupHTML += `<div class="group"><span class="name">${group.status.name}</span><a onclick="joinGroup('${group.id}')" class="join">Join</a></div>`;
+            Object.values(groups).sort((a, b) => {
+                //Sort to put groups created by the current user at the top
+                return (b.createdBy == firebase.auth().currentUser.uid) - (a.createdBy == firebase.auth().currentUser.uid)
+            }).forEach(group => {
+                if ((group.access && group.access.visible) || (group.createdBy == firebase.auth().currentUser.uid)) {
+                    groupHTML += /*html*/`
+                        <div class="group">
+                            ${group.createdBy == firebase.auth().currentUser.uid ? `<span class="owner"><i class="material-icons">star</i></span>` : ``}
+                            <span class="name">${group.status.name}</span>
+                            <a onclick="joinGroup('${group.id}')" class="join">Join</a>
+                        </div>
+                    `;
                     $("#groupList").html(groupHTML);
                 }
             })

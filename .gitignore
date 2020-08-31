@@ -2,3 +2,7 @@ anime
 node_modules
 app/out
 vlclog.html
+hazel
+*.ignore.txt
+firebase
+.idea

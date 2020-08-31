@@ -16,9 +16,6 @@
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Extended" rel="stylesheet">
     <link type="text/css" rel="stylesheet" href="https://cdn.jottocraft.com/fluid/v5.min.css"
         media="screen,projection" />
-    <link type="text/css" rel="stylesheet"
-        href="https://fonts.googleapis.com/css2?family=Public+Sans:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap"
-        media="screen,projection" />
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
     <script src="https://cdn.jottocraft.com/fluid/v5.min.js"></script>
 
@@ -27,8 +24,7 @@
     <script src="https://www.gstatic.com/firebasejs/7.15.5/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/7.15.5/firebase-auth.js"></script>
     <script src="https://www.gstatic.com/firebasejs/7.15.5/firebase-database.js"></script>
-
-
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.27.0/moment.min.js"></script>
 
     <script>
         // Your web app's Firebase configuration
@@ -54,135 +50,552 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
     <!-- Title, author, description -->
-    <title>VLC Sync (beta)</title>
+    <title>Red (beta)</title>
     <link rel="shortcut icon" href="https://player.red.jottocraft.com/favicon.png" type="image/png">
     <meta name="author" content="jottocraft">
 </head>
 
 
-<body class="dark midnight">
-    <div id="toolbar" style="padding: 10px 10px 20px; display: none;">
-        <p style="vertical-align: middle; display: inline-block; width: calc(100% - 270px); margin: 0px; height: 38px; line-height: 38px;"
-            id="groupName">
-            <img style="width: 32px; margin-right: 8px; vertical-align: middle;" src="icon.svg" />
-            <span style="font-weight: bold;">VLC Sync (beta)</span>
-        </p>
-        <div style="float: right;">
-            <button id="settingsBtn" onclick="settings();" style="vertical-align: middle; margin: 0px;"
-                class="btn small acrylicMaterial">
-                <i class="material-icons">settings</i>
-                Settings
-            </button>
-            <button id="backBtn" onclick="closeSettings();" style="vertical-align: middle; margin: 0px; display: none;"
-                class="btn small acrylicMaterial">
-                <i class="material-icons">arrow_back</i>
-                Back
-            </button>
-            <button id="leaveBtn" onclick="leaveGroup();" style="display: none;vertical-align: middle; margin: 0px;"
-                class="btn small acrylicMaterial">
-                <i class="material-icons">person_remove</i>
-                Leave
-            </button>
+<body class="hasSidebar hasNavbar">
+
+    <div class="navbar">
+        <div class="logo">
+            <img src="icon.svg" />
+            <h4>Red (beta)</h4>
         </div>
-        <p id="viewCounterWrapper" style="color: var(--secText); margin: 0px; display: none;"><i style="vertical-align: middle;" class="material-icons">group</i> <span id="viewerCounter" style="vertical-align: middle;">0</span> <span style="font-size: 12px;">viewers</span></p>
+
+        <div class="items">
+            <div onclick="sessionScreen()" class="navitem session active">
+                <i class="material-icons">groups</i>
+                <span id="sessionName">Session</span>
+            </div>
+            <div onclick="settings()" class="navitem settings">
+                <i class="material-icons">settings</i>
+                <span>Settings</span>
+            </div>
+        </div>
+
+        <div class="profile">
+            <div class="profileImage">
+                <i class="material-icons">account_circle</i>
+            </div>
+        </div>
     </div>
 
-    <div id="settings" style="display: none;">
-        <h2>Settings</h2>
-        <p>Version
-            <script>document.write(require('electron').remote.app.getVersion())</script>
-        </p>
-        <p id="settingsLoginText"></p>
-        <br />
-        <h4 style="font-weight: bold;">Anime folder</h4>
-        <p>Your anime folder is currently set to <span class="animeFolderPath"></span>. Click the button below to change
-            the folder location.</p>
-        <button onclick="moveAnimeFolder()" class="btn outline"><i class="material-icons">folder</i> Change anime folder
-            location</button>
-        <br /><br /><br />
-        <div class="hostSettings takeControl">
-            <h4 style="font-weight: bold;">Group host</h4>
-            <p>You can take over control of this group by clicking the button below. By taking over control, your VLC
-                state will control the group's status.</p>
-            <button onclick="host()" class="btn outline"><i class="material-icons">perm_identity</i> Take
-                control</button>
-            <br /><br /><br />
+    <div class="card close focus profileMenu">
+        <div class="person">
+            <div class="profileImage">
+                <i class="material-icons">account_circle</i>
+            </div>
+            <div class="info">
+                <h5 class="name"></h5>
+                <p class="redEmail"></p>
+            </div>
         </div>
-        <div class="hostSettings activeHost activeOwner" style="display: block;">
-            <h4 style="font-weight: bold;">Group settings</h4>
-            <p class="hostSettings activeOwner">Since you are the creator of this group, you will always have access to
-                this group's settings regardless of if you are the current host or not.</p>
-            <p class="hostSettings activeHost">Since you are the current host of this group, you can change this group's
-                settings.</p>
-            <br />
-            <p>Group name</p>
-            <input id="groupNameSetting" placeholder="Group name" />
-            <button onclick="renameGroup()" class="btn outline"><i class="material-icons">save</i> Save</button>
-            <br />
-            <p>Video download URL</p>
-            <input id="groupDownloadSetting" placeholder="Video download URL" />
-            <button onclick="setGroupDownload()" class="btn outline"><i class="material-icons">save</i> Save</button>
-            <br />
+
+        <div class="actions">
+            <div onclick="logout()" class="item">
+                <i class="material-icons">exit_to_app</i>
+                <span class="label">Logout</span>
+            </div>
         </div>
-        <div class="hostSettings activeOwner">
-            <h4 style="font-weight: bold;">Group Access</h4>
-            <p>Only you, the creator of this group, has access to these settings</p>
-            <br />
-            <p>Group visibility</p>
-            <div>
-                <div class="switch"><span class="head"></span></div>
-                <div class="label"><i class="material-icons">visibility</i> Show this group in the list</div>
+    </div>
+
+    <div class="sidebar">
+        <div class="items">
+
+            <div id="sessionNavStatus" onclick="navigate('sessionStatusScreen')" class="item main active">
+                <i class="material-icons">play_circle_filled</i> <span class="label">Status</span>
+            </div>
+
+            <div class="divider"></div>
+
+            <div id="infoEditNav" style="display: none;" onclick="navigate('sessionInfoScreen')" class="item">
+                <i class="material-icons">description</i> <span class="label">Session Info</span>
+            </div>
+
+            <div id="permsEditnav" style="display: none;" onclick="navigate('sessionPermissionScreen')" class="item">
+                <i class="material-icons">rule</i> <span class="label">Session Permissions</span>
+            </div>
+
+            <div class="divider"></div>
+
+            <div id="hostNav" style="display: none;" onclick="takeControl();" class="item manual"></div>
+
+            <div onclick="leaveSession();" class="item manual">
+                <i class="material-icons">person_remove</i> <span class="label">Leave session</span>
+            </div>
+
+        </div>
+
+        <div class="collapse">
+            <i class="material-icons"></i>
+        </div>
+    </div>
+
+    <div class="container playbackContainer">
+        <div id="sessionStatusScreen" class="screen">
+            <div class="screenHeader">
+                <img class="sessionImage" />
+                <div class="text">
+                    <div id="sessionStatusHeader">
+                        <h2 id="syncStatus"><i class="material-icons"></i> <span></span></h2>
+                        <p id="syncDetails"></p>
+                    </div>
+                    <div id="sessionStatusAction" style="display: none;">
+                        <h5></h5>
+                        <p></p>
+                        <div></div>
+                    </div>
+                    <div id="sessionStatusBar" style="display: none;">
+                        <div class="status">
+                            <i class="material-icons">visibility</i>
+                            <span class="viewCount"></span>
+                        </div>
+                        <div class="status">
+                            <i class="material-icons">settings_remote</i>
+                            <span class="hostName" style="max-width: 150px;"></span>
+                        </div>
+                        <div class="status">
+                            <i class="material-icons">movie</i>
+                            <span class="videoName" style="max-width: 250px;"></span>
+                        </div>
+                        <div style="display: none;" class="status">
+                            <i class="material-icons">timer</i>
+                            <span class="videoDuration" style="max-width: 100px;"></span>
+                        </div>
+                        <div style="display: none;" id="visualPlaybackState"></div>
+                    </div>
+                </div>
             </div>
             <br />
-            <p>Group access</p>
-            <div>
-                <div class="switch"><span class="head"></span></div>
-                <div class="label"><i class="material-icons">rule</i> Allow anyone to take control of this group
+            <br /><br />
+            <div class="grid samesize">
+                <div class="item" style="padding: 10px;">
+                    <div id="syncControlsArea" style="display: none;">
+                        <p>Sync controls</p>
+                        <button class="btn small" onclick="resetSessionOffset()"><i class="material-icons">sync</i>
+                            Force re-sync</button>
+                        <br /><br /><br />
+                    </div>
+                    <div id="richContent" style="display: none;">
+                        <h5></h5>
+                        <div class="detailsArea">
+                            <div id="richContentEpisodes">
+                                <i class="material-icons">video_library</i>
+                                <span></span>
+                            </div>
+                            <div id="richContentLength">
+                                <i class="material-icons">timer</i>
+                                <span></span>
+                            </div>
+                            <div id="richContentAiring">
+                                <i class="material-icons">live_tv</i>
+                                <span></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div id="viewerListCard" class="item card viewerList" style="display: none;">
+                    <h5>Viewers</h5>
+                    <div id="viewerList"></div>
                 </div>
             </div>
         </div>
+        <div style="display: none;" id="sessionInfoScreen" class="screen">
+            <div class="screenHeader">
+                <h2>Session Info</h2>
+            </div>
+            <br /><br /><br />
+            <div class="hostSettings activeHost activeOwner" style="display: block;">
+                <div class="grid samesize" style="--size: 400px;">
+                    <div class="item">
+                        <p>Session name</p>
+                        <div>
+                            <i class="inputIcon material-icons">text_fields</i>
+                            <input id="sessionNameSetting" class="inputIcon" placeholder="Session name" />
+                        </div>
+                    </div>
+                    <div id="scheduledSessionStart" class="item">
+                        <p>Scheduled start time (optional)</p>
+                        <div>
+                            <input type="datetime-local" id="sessionStartTime">
+                            <button onclick="$('#sessionStartTime').val('')" class="small outline"><i
+                                    class="material-icons">clear</i> Clear</button>
+                        </div>
+                    </div>
+                </div>
+                <br /><br />
+                <div class="grid samesize" style="--size: 400px;">
+                    <div class="item">
+                        <p>Content name (optional)</p>
+                        <div>
+                            <i class="inputIcon material-icons">movie</i>
+                            <input disabled id="sessionContentName" class="inputIcon" placeholder="Content name" />
+                        </div>
+                        <div style="margin-top: 5px;">
+                            <div id="malLink" init="true" class="switch"><span class="head"></span></div>
+                            <div class="label">Link with MyAnimeList</div>
+                        </div>
+                        <p id="malLinked" style="display: none;">Linked to "<a id="malLinkedName" href="#"></a>" on MyAnimeList (<a onclick="malUI('list')" href="#">change</a>)</p>
+                        <div style="display: none;" id="malSection">
+                            <p><b>Select the matching Anime on MyAnimeList</b></p>
+                            <div id="animeList"></div>
+                        </div>
+                        <br />
+                    </div>
+                    <div class="item">
+                        <p>Video download URL (optional)</p>
+                        <div>
+                            <i class="inputIcon material-icons">insert_link</i>
+                            <input id="sessionDownloadURL" class="inputIcon" placeholder="Video download URL" />
+                        </div>
+                    </div>
+                </div>
+                <br /><br /><br />
+                <div class="divider"></div>
+                <br />
+                <button onclick="saveSessionInfo()" class="btn"><i class="material-icons">save</i>
+                    Save</button>
+            </div>
+        </div>
+        <div style="display: none;" id="sessionInfoScreen" class="screen">
+            <div class="screenHeader">
+                <h2>Session Info</h2>
+            </div>
+            <br /><br /><br />
+            <div class="hostSettings activeHost activeOwner" style="display: block;">
+                <div class="grid samesize" style="--size: 400px;">
+                    <div class="item">
+                        <p>Session name</p>
+                        <div>
+                            <i class="inputIcon material-icons">text_fields</i>
+                            <input id="sessionNameSetting" class="inputIcon" placeholder="Session name" />
+                        </div>
+                    </div>
+                    <div class="item">
+                        <p>Scheduled start time (optional)</p>
+                        <div>
+                            <input type="datetime-local" id="sessionStartTime">
+                            <button onclick="$('#sessionStartTime').val('')" class="small outline"><i
+                                    class="material-icons">clear</i> Clear</button>
+                        </div>
+                    </div>
+                </div>
+                <br /><br />
+                <div class="grid samesize" style="--size: 400px;">
+                    <div class="item">
+                        <p>Content name (optional)</p>
+                        <div>
+                            <i class="inputIcon material-icons">movie</i>
+                            <input id="sessionContentName" class="inputIcon" placeholder="Content name" />
+                        </div>
+                    </div>
+                    <div class="item">
+                        <p>Video download URL (optional)</p>
+                        <div>
+                            <i class="inputIcon material-icons">insert_link</i>
+                            <input id="sessionDownloadURL" class="inputIcon" placeholder="Video download URL" />
+                        </div>
+                    </div>
+                </div>
+                <br /><br /><br />
+                <div class="divider"></div>
+                <br />
+                <button onclick="saveSessionInfo()" class="btn"><i class="material-icons">save</i>
+                    Save</button>
+            </div>
+        </div>
+        <div style="display: none;" id="sessionPermissionScreen" class="screen">
+            <div class="screenHeader">
+                <h2>Session Permissions</h2>
+                <p>Only you, the owner of this session, has access to these settings</p>
+            </div>
+            <br />
+            <div class="grid samesize" style="--size: 410px;">
+                <div class="item">
+                    <p>Access code<br /><span id="sessionAccessURL"></span></p>
+                    <br />
+                    <p>Session access</p>
+                    <div id="sessionVisibilitySetting" class="btns row small">
+                        <button onclick="sessionAccess('private')" class="btn private"><i
+                                class="material-icons">lock</i> Private</button>
+                        <button onclick="sessionAccess('unlisted')" class="btn unlisted"><i
+                                class="material-icons">visibility_off</i> Unlisted</button>
+                        <button onclick="sessionAccess('public')" class="btn public"><i
+                                class="material-icons">public</i> Public</button>
+                    </div>
+                    <br /><br />
+                    <p>Playback control</p>
+                    <div>
+                        <div onclick="toggleHostLock(this)" id="hostLockSetting" init="true" class="switch"><span
+                                class="head"></span></div>
+                        <div class="label"><i class="material-icons">settings_remote</i> Allow viewers to take control
+                            of playback
+                        </div>
+                    </div>
+                    <br /><br />
+                    <p>Advanced</p>
+                    <div>
+                        <button onclick="deleteSession()" class="btn"><i class="material-icons">delete</i> Delete
+                            Session</button>
+                    </div>
+                    <br /><br />
+                </div>
+                <div class="item">
+                    <p>Assign roles</p>
+                    <div>
+                        <i class="inputIcon material-icons">face</i>
+                        <input id="addSessionRole" class="inputIcon" placeholder="Username" />
+                    </div>
+                    <div>
+                        <button onclick="addRole('admin')" class="small">Make admin</button>
+                        <button onclick="addRole('member')" class="small">Make member</button>
+                    </div>
+                    <br /><br />
+                    <h5>Admins</h5>
+                    <div class="permList">
+                        <div><i class="material-icons">edit</i> Edit session info</div>
+                        <div><i class="material-icons">settings_remote</i> Take control even when disabled</div>
+                        <div><i class="material-icons">lock_open</i> Find and join when private or unlisted</div>
+                        <div><i class="material-icons">group</i> See viewers list</div>
+                    </div>
+                    <div class="roleUserList" id="adminUsersList"></div>
+                    <br /><br />
+                    <h5>Members</h5>
+                    <div class="permList">
+                        <div><i class="material-icons">lock_open</i> Find and join when private or unlisted</div>
+                        <div><i class="material-icons">group</i> See viewers list</div>
+                    </div>
+                    <div class="roleUserList" id="membersUserList"></div>
+                </div>
+            </div>
+        </div>
+    </div>
 
-        <br /><br /><br /><br />
-        <div style="text-align: center; padding: 50px 0px;">
+    <div style="display: none;" class="container sessionListContainer">
+        <h2>Sessions</h2>
+        <div class="row">
+            <button onClick="sessionScreen('create');" class="btn"><i class="material-icons">add</i> Create a
+                session</button>
+            <button onclick="getSessions(true);" class="btn"><i class="material-icons">refresh</i> Refresh list</button>
+        </div>
+        <br /><br />
+        <div id="sessionsList"></div>
+    </div>
+
+    <div style="display: none;" class="container createSessionContainer">
+        <h2>Create session</h2>
+        <div class="row">
+            <button onClick="sessionScreen('list');" class="btn small outline"><i class="material-icons">arrow_back</i>
+                Back</button>
+        </div>
+        <br />
+        <p id="createSessionPerms">By default, your session will be private so you can make sure everything is
+            configured properly. You can
+            manage session access in the session permissions menu.</p>
+        <p id="createSessionNoPerms">Since you are creating this session using a Guest account, whoever is in control of the
+            session will also be able to
+            change the session's information. Your session will be deleted automatically 15 minutes after everybody in
+            the session disconnects.</p>
+        <br />
+        <div>
+            <i class="inputIcon material-icons">text_fields</i>
+            <input id="newSessionName" class="inputIcon" placeholder="Session name" />
+        </div>
+        <br />
+        <button onclick="createSession()"><i class="material-icons">add</i> Create</button>
+    </div>
+
+    <div style="display: none;" class="container actionNeededContainer">
+        <br /><br /><br />
+        <div id="actionAlert">
+            <h5></h5>
+            <p></p>
+            <div></div>
+        </div>
+    </div>
+
+    <div style="display: none;" class="container settingsContainer">
+        <h2>Settings</h2>
+        <p>Version
+            <script>document.write(require('electron').remote.app.getVersion())</script>
+            (beta)
+        </p>
+        <br />
+        <h4 style="font-weight: bold;">Theme</h4>
+        <div class="btns row themeSelector"></div>
+        <br /><br />
+        <h4 style="font-weight: bold;">Video Playback</h4>
+        <p>Your VLC path is currently set to <a class="vlcProgramPath" href="#"></a>. If this isn't correct or if you
+            want to use a different version of VLC, click the button below to set the VLC location.</p>
+        <button onclick="setVLCPath()" class="btn outline"><i class="material-icons">video_settings</i> Set VLC
+            location</button>
+        <br /><br />
+        <p>Sync customizations</p>
+        <div>
+            <div onclick="fluid.set('pref-trackSync')" class="switch active pref-trackSync"><span class="head"></span>
+            </div>
+            <div class="label"><i class="material-icons">subtitles</i> Sync subtitle, audio, and video tracks</div>
+        </div>
+        <br /><br />
+        <p>Discord</p>
+        <div>
+            <div onclick="fluid.set('pref-discordSync')" class="switch active pref-discordSync"><span class="head"></span>
+            </div>
+            <div class="label"><i class="material-icons">playlist_play</i> Show my playback state in Discord Rich Presence</div>
+        </div>
+        <br /><br />
+        <h4 style="font-weight: bold;">Video files</h4>
+        <p>Your videos folder is currently set to <a class="videoFolderPath" href="#"></a>. You can change this location
+            if
+            you want Red to scan for videos elsewhere.</p>
+        <button onclick="moveVideoFolder()" class="btn outline"><i class="material-icons">folder</i> Change videos
+            folder
+            location</button>
+        <div id="clearFileOverrides">
+            <br />
+            <p>You currently have file overrides set. Click the button below to clear those overrides. You may have to reload the session for changes to take effect.</p>
+            <button onclick="window.localStorage.removeItem('fileOverrides'); fileOverrides = {}; file = null; $('#clearFileOverrides').hide();"
+                class="btn outline"><i class="material-icons">insert_drive_file</i>
+                Forget file overrides</button>
+        </div>
+        <div style="text-align: center; padding: 50px 0px; margin-top: 100px;">
             <img style="height: 45px; margin-right: 20px; vertical-align: middle;"
                 src="https://cdn.jottocraft.com/images/footerImage.png" />
-            <h5 style="display: inline-block; vertical-align: middle;">jottocraft</h5>
-            <p>(c) jottocraft 2020. All rights reserved.</p>
+            <h5 style="display: inline-block; vertical-align: middle; font-weight: normal;">jottocraft</h5>
+            <p>(c) jottocraft 2020. All rights reserved.&nbsp;&nbsp;<a href="https://github.com/jottocraft/red"
+                    target="_blank">source
+                    code</a>&nbsp;&nbsp;<a href="https://github.com/jottocraft/red/blob/master/LICENSE"
+                    target="_blank">license</a></p>
         </div>
-
     </div>
 
-    <div id="createGroup" style="display: none;">
-        <h2>Create a group</h2>
-        <p>Groups are temporary and will automatically deleted when all members of the group have disconnected.</p>
+    <div id="createSession" style="display: none;">
+        <h2>Create a session</h2>
+        <p id="isAnonymousWarning">Sessions created using Guest accounts are temporary and will be automatically deleted 15
+            minutes after everyone in the session leaves.</p>
+        <p id="sessionAccessNotice">Your session will be hidden by default. You can configure session access in the
+            settings menu.</p>
         <br />
-        <input id="newGroupName" placeholder="Group name" />
+        <input id="newSessionName" placeholder="Session name" />
         <br />
-        <button onclick="addGroup()" class="btn outline"><i class="material-icons">add</i> Create</button>
+        <button onclick="addSession()" class="btn outline"><i class="material-icons">add</i> Create</button>
     </div>
 
-    <div id="loading" style="display: block; margin-top: 100px;" class="loadingScreen">
+    <div id="login" style="display: none; text-align: center;" class="splashScreen">
+        <div class="card" style="width: 600px; text-align: left; display: inline-block;">
+            <div><img src="icon.svg" style="width: 45px; margin-right: 20px; vertical-align: middle;">
+                <h3 style="display: inline-block; vertical-align: middle;font-weight: bold;">Red</h3>
+            </div>
+            <div id="mainLogin" class="loginScreen">
+                <p>Login or create an account</p>
+                <br />
+                <button onclick="emailPasswordUI()"><i class="material-icons">email</i> Login with email &
+                    password</button>
+                <br /><br />
+                <button onclick="githubUI()" class="githubButton"><img src="github.svg"
+                        class="material-icons" /><span>Login with GitHub</span></button>
+                <br /><br /><br />
+                <div class="divider"></div>
+                <br />
+                <button onclick="anonymousLogin()" class="outline"><i class="material-icons">person_outline</i> Continue
+                    as guest</button>
+            </div>
+            <div id="emailPasswordUI" class="loginScreen">
+                <p>Login or sign up with email & password</p>
+                <br />
+                <div>
+                    <i class="inputIcon material-icons">email</i>
+                    <input onKeyDown="if(event.keyCode==13) emailPasswordSignIn();" id="userEmail" class="inputIcon"
+                        placeholder="Email" type="email" />
+                </div>
+                <div>
+                    <i class="inputIcon material-icons">lock</i>
+                    <input onKeyDown="if(event.keyCode==13) emailPasswordSignIn();" id="userPassword" class="inputIcon"
+                        placeholder="Password" type="password" />
+                </div>
+                <br />
+                <div class="divider"></div>
+                <br />
+                <div>
+                    <button onclick="showLoginScreen()" class="outline"><i
+                            class="material-icons">arrow_back</i>Back</button>
+                    <button onclick="emailPasswordUI()" class="outline"><i class="material-icons">email</i>Reset
+                        password</button>
+                    <button onclick="emailPasswordSignIn()"><i class="material-icons">login</i>Sign in</button>
+                </div>
+            </div>
+            <div id="createAccountUI" class="loginScreen">
+                <p>It doesn't look like you have an account yet. Confirm the password you set in the previous step to
+                    create your account.</p>
+                <br />
+                <div>
+                    <i class="inputIcon material-icons">lock</i>
+                    <input onKeyDown="if(event.keyCode==13) createEmailAccount();" id="userPasswordVerify"
+                        class="inputIcon" placeholder="Confirm password" type="password" />
+                </div>
+                <br />
+                <div class="divider"></div>
+                <br />
+                <div>
+                    <button onclick="emailPasswordUI()" class="outline"><i
+                            class="material-icons">arrow_back</i>Back</button>
+                    <button onclick="createEmailAccount()"><i class="material-icons">add</i>Create account</button>
+                </div>
+            </div>
+            <div id="setANameUI" class="loginScreen">
+                <p>Choose a username for your account to continue</p>
+                <br />
+                <div>
+                    <i class="inputIcon material-icons">face</i>
+                    <input onKeyDown="if(event.keyCode==13) setUsername();" id="newUsername" class="inputIcon"
+                        placeholder="Username" type="text" />
+                </div>
+                <br />
+                <div class="divider"></div>
+                <br />
+                <div>
+                    <button onclick="setUsername()"><i class="material-icons">arrow_forward</i>Continue</button>
+                </div>
+            </div>
+            <div id="githubUI" class="loginScreen">
+                <p>To sign in with GitHub, click the "Login in web browser" button, then enter the code below when
+                    prompted.</p>
+                <br />
+                <h5 id="githubAuthCode" style="font-weight: bold; text-align: center;">...</h5>
+                <br />
+                <div class="divider"></div>
+                <br />
+                <div>
+                    <button onclick="showLoginScreen()" class="outline backArrow"><i
+                            class="material-icons">arrow_back</i>Back</button>
+                    <button id="githubLoginButton" style="display: none;"><i class="material-icons">open_in_new</i>Login
+                        in web browser</button>
+                    <span id="githubLoginWaiting" style="display: none;">Waiting for login to finish...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <div id="loading" style="display: block;" class="loadingScreen splashScreen">
         <div>
-            <img style="margin: 0; width: 70px;" src="icon.svg" />
-            <h1 style="display: block; font-size: 48px; margin-bottom: 0px;">VLC Sync</h1>
+            <img src="icon.svg" />
+            <h1>Red</h1>
         </div>
 
         <div class="progress">
             <div class="indeterminate"></div>
         </div>
-        <p id="loadingState">Logging in...</p>
+        <p id="loadingState"></p>
     </div>
 
-    <div style="margin-top: 50px;" class="container">
-        <div style="text-align: center; max-width: 500px; margin: 0 auto; display: none;" id="lobby">
-            <i id="lobbyIcon" class="material-icons"></i>
-            <h5 style="font-weight: bold;" id="lobbyTitle"></h5>
-            <p id="lobbyDescription"></p>
-            <div style="display: none;" id="groupList"></div>
-        </div>
-    </div>
-
-    <script src="ui.js"></script>
+    <script src="scripts/auth.js"></script>
+    <script src="scripts/navigation.js"></script>
+    <script src="scripts/sync.js"></script>
+    <script src="scripts/ui.js"></script>
+    <script src="scripts/app.js"></script>
 </body>
 
 </html>

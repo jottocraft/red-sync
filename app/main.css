@@ -1,4 +1,4 @@
-#groupList {
+#sessionList {
     width: 400px;
     height: 450px;
     border: 2px solid var(--elements);
@@ -7,22 +7,39 @@
     padding: 10px 20px;
 }
 
-#groupList .group {
+#sessionList .session {
     text-align: left;
     margin: 10px 0px;
 }
 
-#groupList .group .name {
+#sessionList .session .owner {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
     display: inline-block;
-    max-width: calc(100% - 40px);
+    color: var(--secText);
+    vertical-align: middle;
 }
 
-#groupList .group a.join {
+#sessionList .session .owner i {
+    font-size: 22px;
+    vertical-align: middle;
+    margin-right: 2px;
+}
+
+#sessionList .session .name {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: inline-block;
+    max-width: calc(100% - 60px);
+    vertical-align: middle;
+}
+
+#sessionList .session a.join {
     float: right;
     cursor: pointer;
+    vertical-align: middle;
 }
 
 .instructions {
@@ -38,7 +55,7 @@
   display: inline-block;
 }
 
-#settings, #createGroup {
+#settings, #createSession {
     width: 100%; 
     min-height: calc(100vh - 60px); 
     position: absolute; 
@@ -50,7 +67,292 @@
     background-color: var(--background);
 }
 
-.userID {
+.userID, #sessionAccessURL {
     font-family: monospace, var(--textFont);
-    font-size: 10px;
+}
+
+.screenHeader {
+    text-align: center;
+    margin-top: 50px;
+}
+
+.screenHeader i {
+    font-size: 40px;
+    font-weight: bold;
+    vertical-align: middle;
+    margin-right: 2px;
+}
+
+h5, h4, h3 {
+    font-weight: normal;
+}
+
+#sessionStatusBar {
+    display: inline-block;
+    text-align: center;
+    margin-top: 20px;
+    background: var(--cards);
+    padding: 6px 20px;
+    border-radius: 10px;
+    box-shadow: var(--lightShadow);
+    position: relative;
+    overflow: hidden;
+}
+
+#sessionStatusBar .status {
+    display: inline-block;
+    margin: 4px 10px;
+    white-space: nowrap;
+}
+
+#sessionStatusBar .status span, #sessionStatusBar .status i {
+    vertical-align: middle;
+}
+
+#sessionStatusBar .status i {
+    font-size: 24px;
+}
+
+#sessionStatusBar .status span {
+    margin-left: 2px;
+    display: inline-block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.screenHeader .text {
+    display: inline-block;
+    vertical-align: middle;
+    max-width: calc(100% - 255px);
+}
+
+.sessionImage {
+    width: 200px;
+    height: 284px;
+    vertical-align: middle;
+    margin-right: 50px;
+    border-radius: 10px;
+    box-shadow: var(--lightShadow);
+    object-fit: cover;
+    object-position: center;
+    background-color: var(--elements);
+}
+
+.card.session {
+    padding: 24px;
+    cursor: pointer;
+    margin: 20px 0px;
+}
+
+.card.session.unlisted {
+    border: 2px solid var(--elements);
+    background-color: var(--background) !important;
+    box-shadow: none;
+}
+
+.card.session:first-child {
+    margin-top: 0px;
+}
+
+.card.session h5 {
+    margin: 0px;
+    font-weight: bold;
+}
+
+.card.session .details {
+    margin-top: 10px;
+}
+
+.card.session .details div {
+    display: inline-block;
+    margin-right: 20px;
+    vertical-align: middle;
+}
+
+.card.session .details i, .card.session .details span {
+    vertical-align: middle;
+    color: var(--lightText);
+}
+
+.card.session .details i {
+    margin-right: 2px;
+}
+
+button.githubButton {
+    color: white !important;
+    background-color: #353535 !important;
+}
+
+body.dark button.githubButton {
+    background-color: #000000 !important;
+}
+
+button.githubButton img {
+    width: 22px;
+    height: 22px;
+    vertical-align: middle;
+    margin-right: 10px;
+}
+
+button.githubButton span {
+    vertical-align: middle;
+    font-weight: bold;
+}
+
+.actionNeededContainer {
+    text-align: center;
+}
+
+#actionAlert, #sessionStatusAction {
+    display: inline-block;
+    text-align: left;
+    background-color: var(--cards);
+    color: var(--elementText);
+    border-radius: var(--cardRadius);
+    padding: 20px;
+    box-shadow: var(--lightShadow);
+}
+
+#actionAlert {
+    width: 500px;
+}
+
+#actionAlert h5, #sessionStatusAction h5 {
+    font-weight: bold;
+}
+
+#actionAlert button, #sessionStatusAction button {
+    margin-top: 20px;
+}
+
+#syncStatus span {
+    vertical-align: middle;
+    font-weight: bold;
+}
+
+#sessionStartTime {
+    vertical-align: middle;
+    margin-bottom: 10px;
+}
+
+#sessionStartTime+button {
+    vertical-align: middle;
+    margin-bottom: 10px;
+}
+
+.permList {
+    border: 2px solid var(--elements);
+    padding: 5px;
+    border-radius: var(--elementRadius);
+    margin-bottom: 28px;
+}
+
+.permList div {
+    display: inline-block;
+    margin: 4px;
+    font-size: 14px;
+}
+
+.permList div i {
+    vertical-align: middle;
+    font-size: 22px;
+}
+
+.card.viewerList {
+    padding: 28px;
+    box-shadow: var(--lightShadow);
+    margin: 10px;
+}
+
+.card.viewerList h5 {
+    font-weight: bold;
+    margin-top: 0px;
+}
+
+#viewerList {
+    margin-top: 20px;
+}
+
+#viewerList p:last-child {
+    margin-bottom: 0px;
+}
+
+#richContent > h5 {
+    font-size: 22px;
+    font-weight: bold;
+}
+
+#richContent .detailsArea div {
+    display: inline-block;
+    margin: 5px;
+    color: var(--lightText);
+}
+
+#richContent .detailsArea div span {
+    vertical-align: middle;
+}
+
+#richContent .detailsArea div i {
+    vertical-align: middle;
+    margin-right: 2px;
+}
+
+#visualPlaybackState {
+    height: 2px;
+    background: var(--theme);
+    bottom: 0px;
+    left: 0px;
+    position: absolute;
+    transition: width 0.2s;
+}
+
+#malSection {
+    padding: 10px 20px;
+    border-radius: var(--elementRadius);
+    box-shadow: var(--lightShadow);
+    margin-top: 10px;
+}
+
+#malLinked {
+    font-weight: italic;
+    margin-top: 20px;
+    font-size: 14px;
+    font-style: italic;
+}
+
+input:disabled {
+    background-color: var(--elements) !important;
+}
+
+#animeList {
+    max-height: 500px;
+    overflow: auto;
+}
+
+#animeList div {
+    border-radius: var(--elementRadius);
+    padding: 10px;
+    margin: 10px 5px;
+    cursor: pointer;
+    transition: background-color 0.2s, border-color 0.2s;
+    border: 2px solid transparent;
+}
+
+#animeList div:hover {
+    background-color: var(--elements);
+    border-color: var(--highlight);
+}
+
+#animeList h5 {
+    font-size: 16px;
+    margin: 4px 0px;
+}
+
+#animeList p {
+    font-size: 12px;
+    margin: 5px 0px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }

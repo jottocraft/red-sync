@@ -1,10 +1,18 @@
-const { app, BrowserWindow, autoUpdater, dialog } = require('electron');
+const { app, BrowserWindow, autoUpdater, dialog, ipcMain } = require('electron');
 const isDev = require('electron-is-dev');
 const path = require("path");
 const fs = require("fs");
+const { execFile } = require("child_process");
 
 //Prevent app from running on setup
-if(require('electron-squirrel-startup')) return;
+if (require('electron-squirrel-startup')) return;
+
+// Force Single Instance Application
+const shouldRun = app.requestSingleInstanceLock();
+if (!shouldRun) {
+  app.quit();
+  return;
+}
 
 const server = "https://update.red.jottocraft.com"
 const feed = `${server}/update/${process.platform}/${app.getVersion()}`
@@ -36,20 +44,29 @@ if (!isDev) {
     autoUpdater.checkForUpdates();
   }, 600000);
 
+  //Uninstall old version
+  var oldVersionMangaer = path.join(__dirname, "..", "..", "..", "..", "vlc-sync", "Update.exe");
+  if (fs.existsSync(oldVersionMangaer)) {
+    console.log("Found old version. Automatically uninstalling...");
+    execFile(oldVersionMangaer, ["--uninstall"], function() {
+      try {fs.rmdirSync(path.join(oldVersionMangaer, ".."), { recursive: true });} catch(e) {}
+    });
+  }
+
   //Set start menu tile color
   try {
     var sqpath = path.join(__dirname, "..", "..", "..");
-    if (fs.existsSync(path.join(sqpath, "VLC Sync (beta).exe"))) {
+    if (fs.existsSync(path.join(sqpath, "Red (beta).exe"))) {
       fs.copyFile(path.join(__dirname, "tile.png"), path.join(sqpath, "tile.png"), (err) => {
         fs.copyFile(path.join(__dirname, "smallTile.png"), path.join(sqpath, "smallTile.png"), (err) => {
-          fs.copyFile(path.join(__dirname, "VLC Sync (beta).VisualElementsManifest.xml"), path.join(sqpath, "VLC Sync (beta).VisualElementsManifest.xml"), (err) => {
+          fs.copyFile(path.join(__dirname, "Red (beta).VisualElementsManifest.xml"), path.join(sqpath, "Red (beta).VisualElementsManifest.xml"), (err) => {
             if (err) throw err;
             console.log('start menu tile set');
           });
         });
       });
     }
-  } catch(e) {}
+  } catch (e) { }
 }
 
 //Disable media key support
@@ -57,19 +74,33 @@ app.commandLine.appendSwitch('disable-features', 'HardwareMediaKeyHandling,Media
 
 function createWindow() {
   // Create the browser window.
-  const win = new BrowserWindow({
-    width: 600,
-    height: 900,
+  win = new BrowserWindow({
+    width: 800,
+    height: 600,
     webPreferences: {
-      nodeIntegration: true
+      nodeIntegration: true,
+      enableRemoteModule: true
     },
     icon: __dirname + "/favicon.ico",
-    title: "VLC Sync (beta)",
+    title: "Red (beta)",
     autoHideMenuBar: true
   })
 
   // and load the index.html of the app.
   win.loadFile('index.html')
+  win.maximize();
+
+  win.webContents.on('did-finish-load', () => {
+    // Protocol handler for win32
+    if (process.platform == 'win32') {
+      win.webContents.send('deepLinkArgs', process.argv.slice(1))
+    }
+  })
+
+  win.webContents.on('new-window', function (e, url) {
+    e.preventDefault();
+    require('electron').shell.openExternal(url);
+  });
 }
 
 // This method will be called when Electron has finished
@@ -94,5 +125,55 @@ app.on('activate', () => {
   }
 })
 
+app.on('second-instance', (event, argv, cwd) => {
+  // Someone tried to run a second instance, we should focus our window.
+  if (win) {
+    if (win.isMinimized()) win.restore();
+    win.focus();
+
+    if (process.platform == 'win32') {
+      win.webContents.send('deepLinkArgs', argv.slice(1));
+    }
+  }
+});
+
+//Handle jottocraft-red URL
+app.setAsDefaultProtocolClient('jottocraft-red');
+
 // In this file you can include the rest of your app's specific main process
 // code. You can also put them in separate files and require them here.
+
+//Discord RPC
+//Copy Discord GameSDK
+if (!isDev) {
+  try {
+    fs.copyFile(path.join(__dirname, "discord_game_sdk.dll"), path.join(__dirname, "..", "..", "discord_game_sdk.dll"), (err) => {
+      if (err) throw err;
+      discordGame();
+    });
+  } catch (e) { }
+} else {
+  discordGame();
+}
+
+function discordGame() {
+  const Discord = require('discord-game');
+  const isRequireDiscord = false;
+  const hasDiscord = Discord.create('749736883096911892', isRequireDiscord);
+
+  ipcMain.on('discord-activity', (event, arg) => {
+    if (hasDiscord) {
+      try {
+        Discord.Activity
+          .update(arg)
+          .catch(function (e) { console.error(e); });
+      } catch (e) { }
+    }
+  })
+
+  if (hasDiscord) {
+    setInterval(function () {
+      try { Discord.runCallback(); } catch (e) { }
+    }, 1000 / 60)
+  }
+}
