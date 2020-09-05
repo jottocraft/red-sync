@@ -2,7 +2,7 @@ const { dialog, app, shell, clipboard } = require('electron').remote;
 const { ipcRenderer } = require('electron');
 
 //Cache
-var MALcache = {}, namesCache = {}, sessionDBCache = {};
+var MALcache = {}, namesCache = {}, sessionDBCache = {}, isGlobalAdmin = false;
 
 //Videos folder
 var VIDEO_FOLDER = window.localStorage.videoFolderPath || app.getPath("videos");
@@ -29,6 +29,15 @@ ipcRenderer.on("deepLinkArgs", (event, msg) => {
     });
 })
 
+//Listen for fluid theme change
+document.addEventListener("fluidTheme", function (data) {
+    if (isGlobalAdmin && (data.detail !== "sat")) {
+        fluid.theme("sat");
+    } else if (!isGlobalAdmin && (data.detail == "sat")) {
+        fluid.theme("system");
+    }
+});
+
 //Authentication
 firebase.auth().onAuthStateChanged(function (user) {
     if (user) {
@@ -47,6 +56,23 @@ firebase.auth().onAuthStateChanged(function (user) {
                             imageURL: user.photoURL
                         });
                         $(".profileMenu .redEmail").text(user.email || "You are using a Guest account");
+                        $(".profileMenu .redRole").text("");
+                        isGlobalAdmin = false;
+
+                        firebase.auth().currentUser.getIdTokenResult().then((idTokenResult) => {
+                            console.log(idTokenResult);
+                            if (idTokenResult && idTokenResult.claims && idTokenResult.claims.globalAdmin) {
+                                isGlobalAdmin = true;
+                                $(".profileMenu .redRole").text("GLOBAL ADMIN");
+                                if (!fluid.config.allowedThemes.includes("sat")) fluid.config.allowedThemes.push("sat");
+                                fluid.theme("sat");
+                                $(".navitem.globalAdmin").show();
+                            } else {
+                                if (fluid.config.allowedThemes.includes("sat")) fluid.config.allowedThemes = fluid.config.allowedThemes.filter(e => e !== 'sat');
+                                if (fluid.theme() == "sat") fluid.theme("system");
+                                $(".navitem.globalAdmin").hide();
+                            }
+                        });
 
                         hideLoginScreen();
                         openVLC().then(() => {
@@ -85,9 +111,17 @@ function joinSession(id, accessCode) {
 
     //Join session
     userStatus = "joining";
-    firebase.database().ref("/session/" + id + "/members/" + firebase.auth().currentUser.uid).set(accessCode || "joining").then(() => {
+    new Promise((resolve, reject) => {
+        if (isGlobalAdmin && (fluid.get("pref-adminStealth") == "true")) {
+            resolve();
+        } else {
+            firebase.database().ref("/session/" + id + "/members/" + firebase.auth().currentUser.uid).set(accessCode || "joining").then(resolve).catch(reject);
+        }
+    }).then(() => {
         //Set as active session
-        window.localStorage.setItem("activeSession", id);
+        if (!(isGlobalAdmin && (fluid.get("pref-adminStealth") == "true"))) {
+            window.localStorage.setItem("activeSession", id);
+        }
         mySessionID = id;
         sessionScreen("session");
         $("#sessionID").text(id);
@@ -106,7 +140,9 @@ function joinSession(id, accessCode) {
 
             firebase.database().ref("/session/" + id + "/members/" + firebase.auth().currentUser.uid).onDisconnect().remove().then(function () {
                 dbConnection = true;
-                firebase.database().ref("/session/" + id + "/members/" + firebase.auth().currentUser.uid).set(userStatus);
+                if (!(isGlobalAdmin && (fluid.get("pref-adminStealth") == "true"))) {
+                    firebase.database().ref("/session/" + id + "/members/" + firebase.auth().currentUser.uid).set(userStatus);
+                }
             });
         });
 
@@ -162,6 +198,8 @@ function joinSession(id, accessCode) {
                     richContent = data;
 
                     $("#richContent h5").text(data.title);
+                    $("#richContentLink").attr("onclick", "shell.openExternal('" + data.url + "')");
+                    $("#richContentLink span").text("View on MyAnimeList");
 
                     if (data.episodes) {
                         $("#richContentEpisodes span").text(data.episodes + " episodes");
@@ -238,16 +276,19 @@ function joinSession(id, accessCode) {
                     if (data.host == firebase.auth().currentUser.uid) {
                         setNavVisibility("infoEditNav", true, "statusAND");
                         $("#hostNav").html(`<i class="material-icons">sync_disabled</i> <span class="label">Give up control</span>`);
-                        $('#syncControlsArea').show();
+                        $('#syncControlsArea .hostControls').show();
+                        $('#syncControlsArea .clientControls').hide();
                         vlcPlaybackState.host = true;
                     } else {
                         $("#hostNav").html(`<i class="material-icons">settings_remote</i> <span class="label">Take control</span>`);
-                        $('#syncControlsArea').hide();
+                        $('#syncControlsArea .hostControls').hide();
+                        $('#syncControlsArea .clientControls').show();
                         vlcPlaybackState.host = false;
                     }
                 } else {
                     $("#hostNav").html(`<i class="material-icons">settings_remote</i> <span class="label">Take control</span>`);
-                    $('#syncControlsArea').hide();
+                    $('#syncControlsArea .hostControls').hide();
+                    $('#syncControlsArea .clientControls').show();
                     vlcPlaybackState = { host: false };
                 }
 
@@ -272,7 +313,8 @@ function joinSession(id, accessCode) {
                     $("#syncStatus i, #sessionNavStatus i").text("insert_drive_file");
                     playerResolved();
                     setUserStatus("openAFile");
-                    if (fluid.get("pref-discordSync") !== "false") ipcRenderer.send("discord-activity", {});
+                    if (fluid.get("pref-discordSync") == "true") ipcRenderer.send("discord-activity", {});
+                    $('#syncControlsArea').hide();
                 } else if ((!data || !data.video || !data.state) && groupInfo.scheduledStart) {
                     $("#sessionStatusBar").hide();
 
@@ -283,7 +325,8 @@ function joinSession(id, accessCode) {
                     $("#syncStatus i, #sessionNavStatus i").text("schedule");
                     playerResolved();
                     setUserStatus("sessionScheduled");
-                    if (fluid.get("pref-discordSync") !== "false") ipcRenderer.send("discord-activity", {});
+                    if (fluid.get("pref-discordSync") == "true") ipcRenderer.send("discord-activity", {});
+                    $('#syncControlsArea').hide();
                 } else if (!data || !data.video || !data.state) {
                     $("#sessionStatusBar").hide();
 
@@ -294,7 +337,8 @@ function joinSession(id, accessCode) {
                     $("#syncStatus i, #sessionNavStatus i").text("hourglass_empty");
                     playerResolved();
                     setUserStatus("waitingForHost");
-                    if (fluid.get("pref-discordSync") !== "false") ipcRenderer.send("discord-activity", {});
+                    if (fluid.get("pref-discordSync") == "true") ipcRenderer.send("discord-activity", {});
+                    $('#syncControlsArea').hide();
                 } else {
                     //Set status bar
                     if (groupInfo.contentID && richContent && data.episode) {
@@ -314,9 +358,12 @@ function joinSession(id, accessCode) {
                         $("#syncDetails").text("The playback state of video you're playing in VLC is syncing to the viewers of this session");
                         $("#syncStatus i, #sessionNavStatus i").text("sync");
                         setUserStatus("hosting");
+                        $('#syncControlsArea').show();
                     } else if (file && file.endsWith(data.video)) {
+                        $('#syncControlsArea').hide();
                         showPlayer(data);
                     } else {
+                        $('#syncControlsArea').hide();
                         scanForVideos(data.video, function (files) {
                             //Check for file overrides
                             if (fileOverrides[data.video] && fs.existsSync(fileOverrides[data.video])) {
@@ -449,7 +496,7 @@ function joinSession(id, accessCode) {
                     //noPerms
                     setNavVisibility("hostNav", true, "perms");
                     setNavVisibility("infoEditNav", true, "permsAND");
-                } else if (data.owner == firebase.auth().currentUser.uid) {
+                } else if ((data.owner == firebase.auth().currentUser.uid) || (isGlobalAdmin && (fluid.get('pref-adminInvestigation') == "true"))) {
                     //owner
                     setNavVisibility("hostNav", true, "perms");
                     setNavVisibility("infoEditNav", true, "perms");
@@ -472,7 +519,12 @@ function joinSession(id, accessCode) {
                     }
 
                     //Session URL
-                    $("#sessionAccessURL").html(id + (data.accessCode ? "/" + data.accessCode : ""));
+                    if (data.accessCode) {
+                        $("#sessionAccessURL").html(id + (data.accessCode ? "/" + data.accessCode : ""));
+                        $("#sessionJoinCode").show();
+                    } else {
+                        $("#sessionJoinCode").hide();
+                    }
                 } else {
                     //Host perm
                     if (data.anyHost) {
@@ -521,12 +573,18 @@ function joinSession(id, accessCode) {
         }
     }).catch(e => {
         if (e.code == "PERMISSION_DENIED") {
-            window.alert("You don't have permission to join the selected session");
+            if (isGlobalAdmin) {
+                window.alert("Joining session with super sneaky mode");
+                fluid.set("pref-adminStealth", true);
+                joinSession(id, accessCode);
+            } else {
+                window.alert("You don't have permission to join the selected session");
+            }
         } else {
             window.alert("Unable to join the selected session");
         }
 
-        leaveSession();
+        if (!isGlobalAdmin) leaveSession();
     });
 }
 
@@ -535,6 +593,7 @@ function showPlayer(data) {
         //Ready to show player
         playerResolved();
         setUserStatus("syncing");
+        $('#syncControlsArea').show();
 
         if (data.state == "pause|0") {
             //Set status
@@ -708,14 +767,16 @@ function getSessions(list) {
 function setUserStatus(status) {
     userStatus = status;
 
-    if (dbConnection && mySessionID) {
+    if (dbConnection && mySessionID && !(isGlobalAdmin && (fluid.get("pref-adminStealth") == "true"))) {
         firebase.database().ref("/session/" + mySessionID + "/members/" + firebase.auth().currentUser.uid).set(userStatus);
     }
 }
 
 function getUserName(uid) {
     return new Promise((resolve, reject) => {
-        if (namesCache[uid]) {
+        if (isGlobalAdmin && (fluid.get("pref-adminDebug") == "true")) {
+            resolve(uid);
+        } else if (namesCache[uid]) {
             resolve(namesCache[uid]);
         } else {
             firebase.database().ref("/users/username/" + uid).once("value").then(snap => {

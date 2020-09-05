@@ -3,7 +3,7 @@
   "productName": "Red (beta)",
   "description": "Syncs VLC playback across devices",
   "author": "jottocraft",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "main": "main.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
@@ -26,6 +26,7 @@
     "electron-squirrel-startup": "^1.0.0",
     "glob": "^7.1.6",
     "sudo-prompt": "^9.2.1",
+    "timesync": "^1.0.7",
     "update-electron-app": "^1.5.0"
   },
   "config": {

@@ -356,3 +356,11 @@ input:disabled {
     overflow: hidden;
     text-overflow: ellipsis;
 }
+
+.redRole {
+    font-weight: bold !important;
+}
+
+#richContentLink {
+    cursor: pointer;
+}

@@ -1,6 +1,18 @@
 const fs = require("fs");
 const { execFile, exec } = require("child_process");
 const path = require("path");
+const timesync = require('timesync');
+
+// create a timesync instance
+var ts = timesync.create({
+    server: 'http://backend.jottocraft.com:8804/timesync',
+    interval: 10000
+});
+
+// get notified on changes in the offset
+ts.on('change', function (offset) {
+    console.log('changed offset', offset, 'ms');
+});
 
 //Latest VLC module version
 const LATEST_MODULE_VER = 106;
@@ -12,7 +24,9 @@ var VLC_EXE = window.localStorage.vlcExePath || 'C:\\Program Files\\VideoLAN\\VL
 var vlcProcess, vlcIsOpen, forceVLCSkip = false, flags = {
     allowedOffset: 0.6,
     hostOffsetMultiplier: 2,
-    offsetLimit: 50
+    offsetLimit: 50,
+    seekFudge: 0.1,
+    useTimeSync: false
 };
 
 //HTTP request auth and configuration
@@ -69,13 +83,13 @@ function setClientPlayback(data, reqOffset) {
         //Open video in VLC if it's not already open
         if (data?.information?.meta?.filename) {
             if (!file.endsWith(data.information.meta.filename)) {
-                jQuery.get("http://localhost:9090/requests/jottocraft.json?command=playitem&name=" + encodeURI("Red - " + vlcPlaybackState.video) + "&input=" + file.replace("/", "\\"));
+                jQuery.get("http://localhost:9090/requests/jottocraft.json?command=playitem&input=" + file.replace("/", "\\"));
                 videoFail++;
             } else {
                 videoFail = 0;
             }
         } else {
-            jQuery.get("http://localhost:9090/requests/jottocraft.json?command=playitem&name=" + encodeURI("Red - " + vlcPlaybackState.video) + "&input=" + file.replace("/", "\\"));
+            jQuery.get("http://localhost:9090/requests/jottocraft.json?command=playitem&input=" + file.replace("/", "\\"));
             videoFail++;
         }
 
@@ -97,16 +111,16 @@ function setClientPlayback(data, reqOffset) {
                 if (time <= data.length) {
                     if (data.state == "paused") jQuery.get("http://localhost:9090/requests/jottocraft.json?command=play");
                     if (forceVLCSkip || (Math.abs(data.time - time) > allowedOffset)) {
-                        jQuery.get("http://localhost:9090/requests/jottocraft.json?command=directseek&val=" + (time + reqOffset + 0.1));
+                        jQuery.get("http://localhost:9090/requests/jottocraft.json?command=directseek&val=" + (time + reqOffset + flags.seekFudge));
                         forceVLCSkip = false;
 
-                        if (data.length && (fluid.get("pref-discordSync") !== "false")) {
+                        if (data.length && (fluid.get("pref-discordSync") == "true")) {
                             ipcRenderer.send("discord-activity", {
                                 details: $("#sessionStatusBar .videoName").text(),
                                 state: sessionDBCache.info.content,
                                 timestamps: {
                                     startAt: startAt,
-                                    endAt: new Date((new Date().getTime() + (((data.length - (time + reqOffset + 0.1)) / vlcPlaybackState.rate) * 1000)) / 1000)
+                                    endAt: new Date((new Date().getTime() + (((data.length - (time + reqOffset + flags.seekFudge)) / vlcPlaybackState.rate) * 1000)) / 1000)
                                 }
                             })
                         }
@@ -125,7 +139,7 @@ function setClientPlayback(data, reqOffset) {
                 $("#visualPlaybackState").css("width", pos + "%");
                 $("#visualPlaybackState").show();
 
-                if (data.length && (fluid.get("pref-discordSync") !== "false")) {
+                if (data.length && (fluid.get("pref-discordSync") == "true")) {
                     ipcRenderer.send("discord-activity", {
                         details: $("#sessionStatusBar .videoName").text(),
                         state: sessionDBCache.info.content
@@ -203,7 +217,7 @@ function syncHostPlayback(data, reqOffset) {
                 firebase.database().ref("/session/" + mySessionID + "/status/state").set("play|" + (data.time - reqOffset) + "|" + getServerTime().getTime());
                 forceVLCSkip = false;
 
-                if (data.length && data.time && (fluid.get("pref-discordSync") !== "false")) {
+                if (data.length && data.time && (fluid.get("pref-discordSync") == "true")) {
                     ipcRenderer.send("discord-activity", {
                         details: $("#sessionStatusBar .videoName").text(),
                         state: sessionDBCache.info.content,
@@ -222,7 +236,7 @@ function syncHostPlayback(data, reqOffset) {
             //If there is no current playback state, add it
             firebase.database().ref("/session/" + mySessionID + "/status/state").set("play|" + (data.time - reqOffset) + "|" + getServerTime().getTime());
 
-            if (data.length && data.time && (fluid.get("pref-discordSync") !== "false")) {
+            if (data.length && data.time && (fluid.get("pref-discordSync") == "true")) {
                 ipcRenderer.send("discord-activity", {
                     details: $("#sessionStatusBar .videoName").text(),
                     state: sessionDBCache.info.content,
@@ -241,7 +255,7 @@ function syncHostPlayback(data, reqOffset) {
             $("#visualPlaybackState").css("width", (Number(data.position) * 100) + "%");
             $("#visualPlaybackState").show();
 
-            if (data.length && (fluid.get("pref-discordSync") !== "false")) {
+            if (data.length && (fluid.get("pref-discordSync") == "true")) {
                 ipcRenderer.send("discord-activity", {
                     details: $("#sessionStatusBar .videoName").text(),
                     state: sessionDBCache.info.content
@@ -444,6 +458,10 @@ function installModule() {
 
 //SERVER TIME
 function getServerTime() {
+    if (flags.useTimeSync) {
+        return new Date(ts.now());
+    }
+
     var date = new Date();
 
     date.setTime(date.getTime() + offset);
@@ -454,6 +472,7 @@ function getServerTime() {
 var offset = Infinity;
 var runs = 0;
 function calcOffset() {
+    if (flags.useTimeSync) return new Promise((resolve, reject) => resolve());
     return new Promise((resolve, reject) => {
         jQuery.get("http://backend.jottocraft.com:8804/time", function (res, status, xhr) {
             var newOffset = new Date(Number(res)).getTime() - new Date().getTime();

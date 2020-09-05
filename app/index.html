@@ -5,9 +5,45 @@
     <!-- Electron modules start -->
     <script>if (typeof module === 'object') { window.module = module; module = undefined; }</script>
     <script>fluidConfig = {
+            themes: {
+                sat: {
+                    name: "Global Admin Theme",
+                    icon: "admin_panel_settings",
+                    base: "dark",
+                    colors: {
+                        background: "#030204",
+
+                        text: "#ffffff",
+                        lightText: "#d8c9f1",
+                        secText: "#685b7d",
+
+                        elements: "#16111f",
+                        elementText: "#ffffff",
+                        elementHover: "#1d1629",
+                        switchHead: "#cccccc",
+
+                        inputColor: "#241c31",
+
+                        navbar: "#100d17",
+                        sidebarActive: "#231b31",
+
+                        cards: "#08050c",
+
+                        theme: "#8f75ab",
+                        themeText: "#f8f0ff",
+
+                        elementHighlight: "#ffffff12",
+                        acrylic: "#0f0c14cc",
+                        mediumAcrylic: "#0f0c1480",
+                        lightAcrylic: "#0f0c1466",
+                        backgroundTint: "#030204b3"
+                    }
+                }
+            },
             config: {
                 fluidAutoLoad: false,
-                defaultTheme: "system"
+                defaultTheme: "system",
+                allowedThemes: ["midnight", "tome"]
             }
         }</script>
 
@@ -73,6 +109,10 @@
                 <i class="material-icons">settings</i>
                 <span>Settings</span>
             </div>
+            <div style="display: none;" onclick="globalAdmin()" class="navitem globalAdmin">
+                <i class="material-icons">admin_panel_settings</i>
+                <span>Global Admin</span>
+            </div>
         </div>
 
         <div class="profile">
@@ -90,6 +130,7 @@
             <div class="info">
                 <h5 class="name"></h5>
                 <p class="redEmail"></p>
+                <p class="redRole"></p>
             </div>
         </div>
 
@@ -174,9 +215,21 @@
                 <div class="item" style="padding: 10px;">
                     <div id="syncControlsArea" style="display: none;">
                         <p>Sync controls</p>
-                        <button class="btn small" onclick="resetSessionOffset()"><i class="material-icons">sync</i>
-                            Force re-sync</button>
-                        <br /><br /><br />
+                        <div class="clientControls">
+                            <div>
+                                <div onclick="fluid.set('pref-trackSync')" class="switch active pref-trackSync"><span
+                                        class="head"></span>
+                                </div>
+                                <div class="label"><i class="material-icons">subtitles</i> Sync subtitle, audio, and
+                                    video
+                                    tracks</div>
+                            </div>
+                        </div>
+                        <div class="hostControls">
+                            <button class="btn small" onclick="resetSessionOffset()"><i class="material-icons">sync</i>
+                                Force re-sync</button>
+                        </div>
+                        <br /><br />
                     </div>
                     <div id="richContent" style="display: none;">
                         <h5></h5>
@@ -191,6 +244,10 @@
                             </div>
                             <div id="richContentAiring">
                                 <i class="material-icons">live_tv</i>
+                                <span></span>
+                            </div>
+                            <div id="richContentLink">
+                                <i class="material-icons">open_in_new</i>
                                 <span></span>
                             </div>
                         </div>
@@ -237,7 +294,8 @@
                             <div id="malLink" init="true" class="switch"><span class="head"></span></div>
                             <div class="label">Link with MyAnimeList</div>
                         </div>
-                        <p id="malLinked" style="display: none;">Linked to "<a id="malLinkedName" href="#"></a>" on MyAnimeList (<a onclick="malUI('list')" href="#">change</a>)</p>
+                        <p id="malLinked" style="display: none;">Linked to "<a id="malLinkedName" href="#"></a>" on
+                            MyAnimeList (<a onclick="malUI('list')" href="#">change</a>)</p>
                         <div style="display: none;" id="malSection">
                             <p><b>Select the matching Anime on MyAnimeList</b></p>
                             <div id="animeList"></div>
@@ -314,7 +372,7 @@
             <br />
             <div class="grid samesize" style="--size: 410px;">
                 <div class="item">
-                    <p>Access code<br /><span id="sessionAccessURL"></span></p>
+                    <p id="sessionJoinCode">Join code<br /><span id="sessionAccessURL"></span></p>
                     <br />
                     <p>Session access</p>
                     <div id="sessionVisibilitySetting" class="btns row small">
@@ -394,7 +452,8 @@
         <p id="createSessionPerms">By default, your session will be private so you can make sure everything is
             configured properly. You can
             manage session access in the session permissions menu.</p>
-        <p id="createSessionNoPerms">Since you are creating this session using a Guest account, whoever is in control of the
+        <p id="createSessionNoPerms">Since you are creating this session using a Guest account, whoever is in control of
+            the
             session will also be able to
             change the session's information. Your session will be deleted automatically 15 minutes after everybody in
             the session disconnects.</p>
@@ -416,6 +475,30 @@
         </div>
     </div>
 
+    <div style="display: none;" class="container globalAdminContainer">
+        <h2>Global Admin</h2>
+        <p>Settings for debugging and administrative management</p>
+        <br />
+        <div>
+            <div onclick="fluid.set('pref-adminStealth')" class="switch pref-adminStealth"><span class="head"></span>
+            </div>
+            <div class="label">Super sneaky mode</div>
+        </div>
+        <br />
+        <div>
+            <div onclick="fluid.set('pref-adminInvestigation')" class="switch pref-adminInvestigation"><span
+                    class="head"></span>
+            </div>
+            <div class="label">Investigation mode</div>
+        </div>
+        <br />
+        <div>
+            <div onclick="fluid.set('pref-adminDebug')" class="switch pref-adminDebug"><span class="head"></span>
+            </div>
+            <div class="label">Debugging mode</div>
+        </div>
+    </div>
+
     <div style="display: none;" class="container settingsContainer">
         <h2>Settings</h2>
         <p>Version
@@ -432,18 +515,12 @@
         <button onclick="setVLCPath()" class="btn outline"><i class="material-icons">video_settings</i> Set VLC
             location</button>
         <br /><br />
-        <p>Sync customizations</p>
-        <div>
-            <div onclick="fluid.set('pref-trackSync')" class="switch active pref-trackSync"><span class="head"></span>
-            </div>
-            <div class="label"><i class="material-icons">subtitles</i> Sync subtitle, audio, and video tracks</div>
-        </div>
-        <br /><br />
         <p>Discord</p>
         <div>
-            <div onclick="fluid.set('pref-discordSync')" class="switch active pref-discordSync"><span class="head"></span>
+            <div onclick="fluid.set('pref-discordSync')" class="switch pref-discordSync"><span class="head"></span>
             </div>
-            <div class="label"><i class="material-icons">playlist_play</i> Show my playback state in Discord Rich Presence</div>
+            <div class="label"><i class="material-icons">playlist_play</i> Show my playback state in Discord Rich
+                Presence</div>
         </div>
         <br /><br />
         <h4 style="font-weight: bold;">Video files</h4>
@@ -455,8 +532,10 @@
             location</button>
         <div id="clearFileOverrides">
             <br />
-            <p>You currently have file overrides set. Click the button below to clear those overrides. You may have to reload the session for changes to take effect.</p>
-            <button onclick="window.localStorage.removeItem('fileOverrides'); fileOverrides = {}; file = null; $('#clearFileOverrides').hide();"
+            <p>You currently have file overrides set. Click the button below to clear those overrides. You may have to
+                reload the session for changes to take effect.</p>
+            <button
+                onclick="window.localStorage.removeItem('fileOverrides'); fileOverrides = {}; file = null; $('#clearFileOverrides').hide();"
                 class="btn outline"><i class="material-icons">insert_drive_file</i>
                 Forget file overrides</button>
         </div>
@@ -473,7 +552,8 @@
 
     <div id="createSession" style="display: none;">
         <h2>Create a session</h2>
-        <p id="isAnonymousWarning">Sessions created using Guest accounts are temporary and will be automatically deleted 15
+        <p id="isAnonymousWarning">Sessions created using Guest accounts are temporary and will be automatically deleted
+            15
             minutes after everyone in the session leaves.</p>
         <p id="sessionAccessNotice">Your session will be hidden by default. You can configure session access in the
             settings menu.</p>

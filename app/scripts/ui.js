@@ -491,6 +491,15 @@ function settings() {
     }
 }
 
+function globalAdmin() {
+    $(".navbar .navitem").removeClass("active");
+    $(".navbar .navitem.globalAdmin").addClass("active");
+    $(".sidebar").hide();
+    $(".container").hide();
+    $(".container.globalAdminContainer").show();
+    $("body").css("padding-left", "0px");
+}
+
 var sessionScreenType = "session";
 function sessionScreen(type) {
     if (type !== undefined) sessionScreenType = type;
