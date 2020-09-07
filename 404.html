@@ -13,13 +13,13 @@
     <!--OpenGraph -->
     <meta property="og:url" content="https://red.jottocraft.com" />
     <meta property="og:title" content="Red" />
-    <meta property="og:description" content="Sync VLC playback across devices" />
+    <meta property="og:description" content="Join this session on Red" />
     <meta property="og:image" content="https://red.jottocraft.com/logo.png" />
 
     <title>Red</title>
 
     <meta charset="utf-8">
-    <meta name="description" content="Sync VLC playback across devices">
+    <meta name="description" content="Join this session on Red">
     <meta name="author" content="jottocraft">
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
@@ -29,7 +29,7 @@
 
     <style>
         /* Header */
-        #header {
+        .header {
             color: var(--elementText);
             padding: 100px;
             padding-bottom: 120px;
@@ -37,7 +37,7 @@
             text-align: center;
         }
 
-        #header h1 {
+        .header h3 {
             display: inline-block;
             vertical-align: middle;
         }
@@ -48,7 +48,7 @@
             margin-right: 22px;
         }
 
-        #header .title {
+        .header .title {
             margin-bottom: 40px;
         }
 
@@ -114,57 +114,50 @@
             margin-bottom: 20px;
         }
     </style>
+    <script>
+        var sessionName = window.location.pathname.split("/")[1];
+        var accessCode = window.location.pathname.split("/")[2];
+        var redURL = null;
+
+        if (sessionName && accessCode) {
+            redURL = "jottocraft-red://" + sessionName + "/" + accessCode;
+        } else if (sessionName) {
+            redURL = "jottocraft-red://" + sessionName;
+        }
+
+        $(document).ready(() => {
+            if (redURL) {
+                window.location.href = redURL;
+                $("#openAgain").attr("href", redURL);
+            } else {
+                $("#joinHeader").hide();
+                $("#errorHeader").show();
+            }
+        });
+    </script>
 </head>
 
 
 <body>
 
-    <div id="header">
+    <div id="joinHeader" class="header">
         <div class="content">
             <div class="title">
                 <img src="app/icon.svg" />
-                <h1>Red (beta)</h1>
+                <h3>Joining with Red...</h3>
             </div>
-            <div class="row">
-                <button id="dtpsInstallBtn"
-                    onclick="window.location.href = 'http://update.red.jottocraft.com/download';"
-                    class="btn"><i class="material-icons">file_download</i> Download the latest version</button>
-                <button class="btn outline" onclick="window.location.href = 'https://github.com/jottocraft/red';"><i
-                        class="material-icons">code</i> Source code</button>
-            </div>
+            <p>You should see a prompt confirming that you want to open Red. If nothing happens, click <a id="openAgain" href="#">here</a> to try opening Red again.</p>
+            <p>If you don't have Red installed on your computer, click <a href="https://update.red.jottocraft.com/download">here</a> to install it.</p>
         </div>
     </div>
-
-    <div class="container">
-        <div class="row">
-            <div class="block small six columns">
-                <img src="assets/undraw_media_player_ylg8.svg" />
-                <div class="description">
-                    <h3>Synced playback</h3>
-                    <p>Red syncs playback across devices in real time</p>
-                </div>
+    <div style="display: none;" id="errorHeader" class="header">
+        <div class="content">
+            <div class="title">
+                <h3>404</h3>
             </div>
-
-            <div class="block small six columns">
-                <img src="assets/undraw_video_files_fu10.svg" />
-                <div class="description">
-                    <h3>Local files</h3>
-                    <p>Red uses VLC to play high-quality local video files</p>
-                </div>
-            </div>
+            <p>The page you are trying to visit does not exist. Make sure you have the right URL and try again.</p>
         </div>
     </div>
-
-    <br /><br /><br /><br />
-    <div style="text-align: center; padding: 50px 0px;">
-        <img style="height: 45px; margin-right: 20px; vertical-align: middle;"
-            src="https://cdn.jottocraft.com/images/footerImage.png" />
-        <h5 style="display: inline-block; vertical-align: middle;">jottocraft</h5>
-        <p>(c) jottocraft 2020. All rights reserved.&nbsp;&nbsp;<a href="https://github.com/jottocraft/red">source
-                code</a>&nbsp;&nbsp;<a href="https://github.com/jottocraft/red/blob/master/LICENSE">license</a></p>
-    </div>
-
-
 </body>
 
 </html>
