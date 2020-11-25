@@ -41,20 +41,37 @@ document.addEventListener("fluidTheme", function (data) {
 //Authentication
 firebase.auth().onAuthStateChanged(function (user) {
     if (user) {
+
         console.log(user);
+
+        if (oauthIsListening) {
+            //Stop oauth server once login is complete
+            oauthIsListening = false;
+            oauthListener.close();
+        }
 
         function getProfile() {
             load("Getting profile...");
             firebase.database().ref("/users/username/" + user.uid).once("value").then((snap) => {
                 var data = snap.val();
-                if (firebase.auth().currentUser.isAnonymous) data = "Guest";
+
+                if (firebase.auth().currentUser.isAnonymous) {
+                    window.localStorage.setItem("usesAnonymousAccount", "true");
+                    data = "Guest";
+                } else {
+                    window.localStorage.removeItem("usesAnonymousAccount");
+                }
 
                 $(document).ready(() => {
                     if (data) {
-                        fluid.login({
-                            name: data,
-                            imageURL: user.photoURL
-                        });
+                        if (firebase.auth().currentUser.photoURL) {
+                            $(".profileImage").css("background-image", "url('" + firebase.auth().currentUser.photoURL + "')");
+                            $(".profileImage").html("");
+                        } else {
+                            $(".profileImage").css("background-image", "");
+                            $(".profileImage").html(`<i class="material-icons">account_circle</i>`);
+                        }
+                        $(".profileImage").show();
                         $(".profileMenu .redEmail").text(user.email || "You are using a Guest account");
                         $(".profileMenu .redRole").text("");
                         isGlobalAdmin = false;
@@ -99,10 +116,16 @@ firebase.auth().onAuthStateChanged(function (user) {
 
         getProfile();
     } else {
-        $(document).ready(() => {
-            doneLoading();
-            showLoginScreen();
-        });
+        if (window.localStorage.getItem("usesAnonymousAccount") == "true") {
+            //This user was using a temporary account that got deleted, generate a new one
+            anonymousLogin();
+        } else {
+            $(document).ready(() => {
+                $(".profileImage").hide();
+                doneLoading();
+                showLoginScreen();
+            });
+        }
     }
 });
 

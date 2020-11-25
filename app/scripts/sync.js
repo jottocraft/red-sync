@@ -344,7 +344,7 @@ function openVLC() {
             //Check if VLC is already open, if not, open it
             return new Promise((resolve, reject) => {
                 jQuery.getJSON("http://localhost:9090/requests/jottocraft.json", (d) => { resolve(d); }).fail(function () {
-                    vlcProcess = execFile(VLC_EXE, ['--extraintf=http', '--http-port=9090', '--http-password=anime', '--one-instance']);
+                    vlcProcess = execFile(VLC_EXE, ['--extraintf=http', '--http-port=9090', '--http-password=anime']);
                     resolve();
                 })
             });

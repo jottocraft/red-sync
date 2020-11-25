@@ -224,6 +224,13 @@
                                     video
                                     tracks</div>
                             </div>
+                            <br />
+                            <div>
+                                <div onclick="fluid.set('pref-lowLatency')" class="switch active pref-lowLatency"><span
+                                        class="head"></span>
+                                </div>
+                                <div class="label"><i class="material-icons">settings_input_antenna</i> Low latency</div>
+                            </div>
                         </div>
                         <div class="hostControls">
                             <button class="btn small" onclick="resetSessionOffset()"><i class="material-icons">sync</i>
@@ -571,11 +578,10 @@
             <div id="mainLogin" class="loginScreen">
                 <p>Login or create an account</p>
                 <br />
+                <button onclick="googleAuthUI()"><i class="material-icons">google</i> Login with Google</button>
+                <br /><br />
                 <button onclick="emailPasswordUI()"><i class="material-icons">email</i> Login with email &
                     password</button>
-                <br /><br />
-                <button onclick="githubUI()" class="githubButton"><img src="github.svg"
-                        class="material-icons" /><span>Login with GitHub</span></button>
                 <br /><br /><br />
                 <div class="divider"></div>
                 <br />
@@ -639,20 +645,17 @@
                     <button onclick="setUsername()"><i class="material-icons">arrow_forward</i>Continue</button>
                 </div>
             </div>
-            <div id="githubUI" class="loginScreen">
-                <p>To sign in with GitHub, click the "Login in web browser" button, then enter the code below when
-                    prompted.</p>
-                <br />
-                <h5 id="githubAuthCode" style="font-weight: bold; text-align: center;">...</h5>
+            <div id="googleUI" class="loginScreen">
+                <p>Please click the button below to open a Google sign-in window in your browser. Allow Red through
+                    Windows Firewall if prompted.</p>
                 <br />
                 <div class="divider"></div>
                 <br />
                 <div>
                     <button onclick="showLoginScreen()" class="outline backArrow"><i
                             class="material-icons">arrow_back</i>Back</button>
-                    <button id="githubLoginButton" style="display: none;"><i class="material-icons">open_in_new</i>Login
-                        in web browser</button>
-                    <span id="githubLoginWaiting" style="display: none;">Waiting for login to finish...</span>
+                    <button id="openGoogleButton" onclick="openGoogleInBrowser()" style="display: none;"><i
+                            class="material-icons">open_in_new</i>Sign in</button>
                 </div>
             </div>
         </div>

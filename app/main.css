@@ -179,27 +179,6 @@ h5, h4, h3 {
     margin-right: 2px;
 }
 
-button.githubButton {
-    color: white !important;
-    background-color: #353535 !important;
-}
-
-body.dark button.githubButton {
-    background-color: #000000 !important;
-}
-
-button.githubButton img {
-    width: 22px;
-    height: 22px;
-    vertical-align: middle;
-    margin-right: 10px;
-}
-
-button.githubButton span {
-    vertical-align: middle;
-    font-weight: bold;
-}
-
 .actionNeededContainer {
     text-align: center;
 }

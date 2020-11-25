@@ -232,9 +232,19 @@ function deleteSession() {
 
 //LOGOUT
 function logout() {
+    //Leave session, close any cards
     leaveSession();
     fluid.cards.close();
-    firebase.auth().signOut();
+    window.localStorage.removeItem("usesAnonymousAccount");
+
+    var user = firebase.auth().currentUser;
+
+    if (user.isAnonymous) {
+        //If the user is using an anonymous account, try to delete it on sign-out
+        user.delete().catch(() => firebase.auth().signOut());
+    } else {
+        firebase.auth().signOut();
+    }
 }
 
 //SESSION INFO UI
@@ -314,32 +324,10 @@ function emailPasswordUI() {
     $("#emailPasswordUI").show();
 }
 
-function githubUI() {
+function googleAuthUI() {
     $(".loginScreen").hide();
-    $("#githubUI").show();
-    $("#githubLoginButton").hide();
-    $("#githubAuthCode").text("...");
-    $("#githubLoginWaiting").hide();
-    signInWithGithub().then((data) => {
-        $("#githubAuthCode").text(data.code);
-        $("#githubLoginButton").off('click');
-        $("#githubLoginButton").click(() => {
-            require("electron").remote.shell.openExternal(data.url);
-            $("#githubLoginButton").hide();
-            $("#githubLoginWaiting").show();
-        });
-        $("#githubLoginButton").show();
-        data.poll().then((auth) => {
-            var credential = firebase.auth.GithubAuthProvider.credential(auth.access_token);
-            firebase.auth().signInWithCredential(credential).catch(err => {
-                if (err.code == "auth/user-disabled") {
-                    window.alert("Your account has been disabled. Please contact hello@jottocraft.com for more information.");
-                } else {
-                    window.alert("There was an error when trying to sign in with GitHub. Please try again later.");
-                }
-            });
-        })
-    });
+    $("#googleUI").show();
+    signInWithGoogle();
 }
 
 function emailPasswordSignIn() {
@@ -350,11 +338,11 @@ function emailPasswordSignIn() {
         if (err.code == "auth/user-not-found") {
             createAccountUI();
         } else if (err.code == "auth/wrong-password") {
-            window.alert("Invalid password");
+            fluid.alert("Invalid password");
         } else if (err.code == "auth/user-disabled") {
-            window.alert("Your account has been disabled. Please contact hello@jottocraft.com for more information.");
+            fluid.alert("Your account has been disabled. Please contact hello@jottocraft.com for more information.");
         } else {
-            window.alert("Sign in error: " + err.message);
+            fluid.alert("Sign in error", err.message);
         }
     });
 }
@@ -365,17 +353,18 @@ function createEmailAccount() {
     var passwordConfirm = $("#userPasswordVerify").val();
 
     if (password !== passwordConfirm) {
-        window.alert("The password you typed doesn't match. Try again.");
+        fluid.alert("The password you typed doesn't match. Try again.");
         return;
     }
 
     firebase.auth().createUserWithEmailAndPassword(email, password).catch(function (error) {
         console.error(error);
-        window.alert("An error occurred when trying to create your account. Try again later.");
+        fluid.alert("An error occurred when trying to create your account. Try again later.");
     });
 }
 
 function anonymousLogin() {
+    //this shouldnt do any UI things, see app.js usesAnonymousAccount thing
     firebase.auth().signInAnonymously().catch(function (error) {
         console.log(error);
     });
