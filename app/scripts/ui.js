@@ -347,6 +347,29 @@ function emailPasswordSignIn() {
     });
 }
 
+function resetPassword() {
+    fluid.alert("Reset Password", `
+            <input id="emailInput" placeholder="Email" />
+        `, "mail", [
+        {
+            name: "Cancel",
+            icon: "cancel"
+        },
+        {
+            name: "Send reset email",
+            icon: "mail",
+            action: () => {
+                var email = document.getElementById("emailInput").value;
+                firebase.auth().sendPasswordResetEmail(email).then(() => {
+                    fluid.alert("A password reset email was sent. Check your email for instructions.");
+                }).catch(() => {
+                    fluid.alert("An error occured when trying to send a password reset email. Make sure you typed in the correct email address.");
+                })
+            }
+        }
+    ]);
+}
+
 function createEmailAccount() {
     var email = $("#userEmail").val();
     var password = $("#userPassword").val();
