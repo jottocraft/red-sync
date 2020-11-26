@@ -22,7 +22,7 @@ var VLC_EXE = window.localStorage.vlcExePath || 'C:\\Program Files\\VideoLAN\\VL
 
 //VLC processes and sync vars
 var vlcProcess, vlcIsOpen, forceVLCSkip = false, flags = {
-    allowedOffset: 0.6,
+    allowedOffset: 0.6, //TODO:Add comments for what these do
     hostOffsetMultiplier: 2,
     offsetLimit: 50,
     seekFudge: 0.1,
@@ -65,6 +65,12 @@ setInterval(function () {
             } else {
                 //CLIENT
                 setClientPlayback(data, reqOffset);
+            }
+        }).fail(function() { //If reading data from VLC fails 10 times, decide VLC is closed and show the re-open button
+            failCount++;
+            if(failCount>=10) {
+                vlcIsOpen = false;
+                $("#openVLC").show();
             }
         });
     }
@@ -320,7 +326,8 @@ function syncHostPlayback(data, reqOffset) {
 //OPEN VLC ----------------------
 function openVLC() {
     vlcIsOpen = false;
-    load("Starting VLC...");
+    //Moved the opening of the opening VLC loading menu to app.js
+    $("#openVLC").hide();
     return new Promise((fResolve, fReject) => {
         new Promise((resolve, reject) => {
             //Check the VLC exe path

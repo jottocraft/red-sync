@@ -92,6 +92,7 @@ firebase.auth().onAuthStateChanged(function (user) {
                         });
 
                         hideLoginScreen();
+                        load("Starting VLC...");
                         openVLC().then(() => {
                             load("Getting sessions...");
                             getSessions().then((data) => {
