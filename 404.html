@@ -1,163 +1,338 @@
-
 <!DOCTYPE html>
-<html lang="en">
+<html>
 
 <head>
-
-    <link rel="shortcut icon" href="app/build.png" type="image/png">
-
-    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Extended" rel="stylesheet">
-    <link type="text/css" rel="stylesheet" href="https://cdn.jottocraft.com/fluid/v4.min.css"
+    <link type="text/css" rel="stylesheet" href="https://cdn.jottocraft.com/fluid/v5.min.css"
         media="screen,projection" />
-
-    <!--OpenGraph -->
-    <meta property="og:url" content="https://red.jottocraft.com" />
-    <meta property="og:title" content="Red" />
-    <meta property="og:description" content="Join this session on Red" />
-    <meta property="og:image" content="https://red.jottocraft.com/logo.png" />
-
-    <title>Red</title>
-
-    <meta charset="utf-8">
-    <meta name="description" content="Join this session on Red">
-    <meta name="author" content="jottocraft">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-
-    <script async src="https://cdn.jottocraft.com/fluid/assets/tinycolor.js"></script>
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
-    <script src="https://cdn.jottocraft.com/fluid/v4.min.js"></script>
-
+    <script>
+        var info = {
+            title: "404",
+            description: "The requested URL was not found",
+            status: "fail",
+            brand: {
+                name: "Red",
+                image: "https://cdn.jottocraft.com/images/red-syncBitmap.png",
+                favicon: "/app/build.png",
+                color: "#cc4545"
+            }
+        }
+        document.title = info.title + ((info.brand && (" | " + info.brand.name)) || "");
+        if (info.brand && info.brand.image) document.documentElement.style.setProperty('--brandImage', "url('" + info.brand.image + "')");
+        if (info.brand && info.brand.color) document.documentElement.style.setProperty('--brandColor', info.brand.color);
+    </script>
+    <script>document.write(`<link rel="shortcut icon" href="${info.brand && info.brand.favicon}" type="image/png">`)</script>
     <style>
-        /* Header */
-        .header {
-            color: var(--elementText);
-            padding: 100px;
-            padding-bottom: 120px;
-            margin-bottom: 125px;
-            text-align: center;
-        }
-
-        .header h3 {
-            display: inline-block;
-            vertical-align: middle;
-        }
-
-        .title img {
-            height: 98px;
-            vertical-align: middle;
-            margin-right: 22px;
-        }
-
-        .header .title {
-            margin-bottom: 40px;
-        }
-
-        /* Content Blocks */
-        .block {
-            overflow: hidden;
-            margin-bottom: 200px;
-        }
-
-        .container .block .description>*:nth-child(1) {
+        h1 {
             margin-top: 0px;
+            font-size: 68px;
+            text-shadow: 0px 0px 4px var(--secText);
         }
 
-        .container .block .description>*:nth-last-child(1) {
-            margin-bottom: 0px;
+        h1 span {
+            font-weight: bold;
+            vertical-align: middle;
         }
 
-        .container .block .description p {
-            font-size: 20px;
-            color: var(--lightText);
-        }
-
-        /* Large content blocks */
-        .container .block:not(.small)>img {
-            width: 28%;
-            max-width: 250px;
-        }
-
-        .container .block:not(.small)>.description {
-            overflow: hidden;
-        }
-
-        .container .block:not(.small):nth-child(odd)>img,
-        .container .block.left:not(.small):nth-child(even)>img {
-            float: left;
-            margin-right: 48px;
-            margin-left: 0;
-        }
-
-        .container .block:not(.small):nth-child(even)>img,
-        .container .block.right:not(.small):nth-child(odd)>img {
-            float: right;
-            margin-left: 48px;
-            margin-right: 0;
-        }
-
-        .container .block:not(.small) .description h3 {
-            font-size: 2.6rem;
-        }
-
-        /* Small content blocks */
-        .container .block.small .description h3 {
-            font-size: 2.2rem;
-        }
-
-        .container .block.small {
-            text-align: center;
+        div.status {
+            vertical-align: middle;
             display: inline-block;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            margin-right: 5px;
         }
 
-        .container .block.small img {
-            height: 150px;
-            margin-bottom: 20px;
+        div.status.fail {
+            border: 3px solid #792020;
+            background: #e83434ba;
+            box-shadow: 0 0px 20px rgb(255 60 60 / 32%);
+        }
+
+        div.status.success {
+            border: 3px solid #185f27;
+            background: #23b542ad;
+            box-shadow: 0 0px 20px #3cff5952;
+        }
+
+        div.status.game {
+            border: 3px solid #211467;
+            background: #391ece8f;
+            box-shadow: 0 0px 20px rgb(74 48 191 / 32%);
+        }
+
+        i.fail::before {
+            content: "lens";
+            color: #c44848;
+            font-size: 32px;
+        }
+
+        i.success::before {
+            content: "lens";
+            color: #48c45d;
+            font-size: 32px;
+        }
+
+        #background {
+            background-image: var(--brandImage, url('https://cdn.jottocraft.com/images/bitmap.png'));
+            opacity: 0.5;
+            bottom: 80px;
+            position: fixed;
+            z-index: -1;
+            width: 100%;
+            height: 50%;
+            background-position: bottom;
+            background-size: auto min(50%, 600px);
+            background-repeat-y: no-repeat;
         }
     </style>
-    <script>
-        var sessionName = window.location.pathname.split("/")[1];
-        var accessCode = window.location.pathname.split("/")[2];
-        var redURL = null;
-
-        if (sessionName && accessCode) {
-            redURL = "jottocraft-red://" + sessionName + "/" + accessCode;
-        } else if (sessionName) {
-            redURL = "jottocraft-red://" + sessionName;
-        }
-
-        $(document).ready(() => {
-            if (redURL) {
-                window.location.href = redURL;
-                $("#openAgain").attr("href", redURL);
-            } else {
-                $("#joinHeader").hide();
-                $("#errorHeader").show();
-            }
-        });
-    </script>
 </head>
 
 
 <body>
+    <div class="container center">
+        <h1>
+            <script>document.write(`<div id="pageStatus" class="status ${info.status}"></div>`)</script> 
+            <span id="pageTitle"><script>document.write(info.title)</script></span>
+            <h5 id="pageDescription">
+                <script>document.write(info.description)</script>
+            </h5>
+        </h1>
 
-    <div id="joinHeader" class="header">
-        <div class="content">
-            <div class="title">
-                <img src="/app/icon.svg" />
-                <h3>Joining with Red...</h3>
-            </div>
-            <p>You should see a prompt confirming that you want to open Red. If nothing happens, click <a id="openAgain" href="#">here</a> to try opening Red again.</p>
-            <p>If you don't have Red installed on your computer, click <a href="https://update.red.jottocraft.com/download">here</a> to install it.</p>
-        </div>
+        <canvas style="margin-top: 40px; display: none;" width="788" height="500" id="game"></canvas>
     </div>
-    <div style="display: none;" id="errorHeader" class="header">
-        <div class="content">
-            <div class="title">
-                <h3>404</h3>
-            </div>
-            <p>The page you are trying to visit does not exist. Make sure you have the right URL and try again.</p>
-        </div>
-    </div>
+    <div id="background"></div>
+
+    <script>
+        const canvas = document.getElementById('game');
+        const context = canvas.getContext('2d');
+
+        const level1 = [
+            [],
+            [],
+            [],
+            [],
+            ['O', 'O', 'O', 'O', 'O', 'O', 'O', 'O', 'O', 'O', 'O', 'O', 'O', 'O', 'O', 'O', 'O'],
+            ['O', 'O', 'O', 'O', 'O', 'O', 'O', 'O', 'O', 'O', 'O', 'O', 'O', 'O', 'O', 'O', 'O'],
+            ['O', 'O', 'O', 'O', 'O', 'O', 'O', 'O', 'O', 'O', 'O', 'O', 'O', 'O', 'O', 'O', 'O'],
+            ['G', 'G', 'G', 'G', 'G', 'G', 'G', 'G', 'G', 'G', 'G', 'G', 'G', 'G', 'G', 'G', 'G'],
+            ['G', 'G', 'G', 'G', 'G', 'G', 'G', 'G', 'G', 'G', 'G', 'G', 'G', 'G', 'G', 'G', 'G'],
+            ['G', 'G', 'G', 'G', 'G', 'G', 'G', 'G', 'G', 'G', 'G', 'G', 'G', 'G', 'G', 'G', 'G'],
+            ['Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y'],
+            ['Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y'],
+            ['Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y']
+        ];
+
+        // create a mapping between color short code (R, O, G, Y) and color name
+        const colorMap = {
+            //'R': '#27d69c',
+            'O': getComputedStyle(document.body).getPropertyValue('--brandColor') || '#505ae0',
+            'G': getComputedStyle(document.body).getPropertyValue('--brandColor') || '#4487cd',
+            'Y': getComputedStyle(document.body).getPropertyValue('--brandColor') || '#56acbe'
+        };
+
+        // use a 2px gap between each brick
+        const brickGap = 2;
+        const brickWidth = 44;
+        const brickHeight = 12;
+
+        // the wall width takes up the remaining space of the canvas width. with 14 bricks
+        // and 13 2px gaps between them, thats: 400 - (14 * 25 + 2 * 13) = 24px. so each
+        // wall will be 12px
+        const wallSize = 4;
+        const bricks = [];
+        var score = 0;
+
+        // create the level by looping over each row and column in the level1 array
+        // and creating an object with the bricks position (x, y) and color
+        for (let row = 0; row < level1.length; row++) {
+            for (let col = 0; col < level1[row].length; col++) {
+                const colorCode = level1[row][col];
+
+                bricks.push({
+                    x: wallSize + (brickWidth + brickGap) * col,
+                    y: wallSize + (brickHeight + brickGap) * row,
+                    color: colorMap[colorCode],
+                    width: brickWidth,
+                    height: brickHeight
+                });
+            }
+        }
+
+        const paddle = {
+            // place the paddle horizontally in the middle of the screen
+            x: canvas.width / 2 - brickWidth / 2,
+            y: 440,
+            width: brickWidth * 3,
+            height: brickHeight,
+
+            // paddle x velocity
+            dx: 0
+        };
+
+        const ball = {
+            x: 130,
+            y: 260,
+            width: 8,
+            height: 8,
+
+            // how fast the ball should go in either the x or y direction
+            speed: 2,
+
+            // ball velocity
+            dx: 0,
+            dy: 0
+        };
+
+        // check for collision between two objects using axis-aligned bounding box (AABB)
+        // @see https://developer.mozilla.org/en-US/docs/Games/Techniques/2D_collision_detection
+        function collides(obj1, obj2) {
+            return obj1.x < obj2.x + obj2.width &&
+                obj1.x + obj1.width > obj2.x &&
+                obj1.y < obj2.y + obj2.height &&
+                obj1.y + obj1.height > obj2.y;
+        }
+
+        // game loop
+        function loop() {
+            requestAnimationFrame(loop);
+            context.clearRect(0, 0, canvas.width, canvas.height);
+
+            // move paddle by it's velocity
+            paddle.x += paddle.dx;
+
+            // prevent paddle from going through walls
+            if (paddle.x < wallSize) {
+                paddle.x = wallSize
+            }
+            else if (paddle.x + (brickWidth * 3) > canvas.width - wallSize) {
+                paddle.x = canvas.width - wallSize - (brickWidth * 3);
+            }
+
+            // move ball by it's velocity
+            ball.x += ball.dx;
+            ball.y += ball.dy;
+
+            // prevent ball from going through walls by changing its velocity
+            // left & right walls
+            if (ball.x < wallSize) {
+                ball.x = wallSize;
+                ball.dx *= -1;
+            }
+            else if (ball.x + ball.width > canvas.width - wallSize) {
+                ball.x = canvas.width - wallSize - ball.width;
+                ball.dx *= -1;
+            }
+            // top wall
+            if (ball.y < wallSize) {
+                ball.y = wallSize;
+                ball.dy *= -1;
+            }
+
+            // reset ball if it goes below the screen
+            if (ball.y > canvas.height) {
+                ball.x = 130;
+                ball.y = 260;
+                ball.dx = 0;
+                ball.dy = 0;
+            }
+
+            // check to see if ball collides with paddle. if they do change y velocity
+            if (collides(ball, paddle)) {
+                ball.dy *= -1;
+
+                // move ball above the paddle otherwise the collision will happen again
+                // in the next frame
+                ball.y = paddle.y - ball.height;
+            }
+
+            // check to see if ball collides with a brick. if it does, remove the brick
+            // and change the ball velocity based on the side the brick was hit on
+            for (let i = 0; i < bricks.length; i++) {
+                const brick = bricks[i];
+
+                if (collides(ball, brick)) {
+                    // remove brick from the bricks array
+                    bricks.splice(i, 1);
+                    score++;
+                    document.getElementById("pageDescription").innerText = "Score: " + score;
+
+                    // ball is above or below the brick, change y velocity
+                    // account for the balls speed since it will be inside the brick when it
+                    // collides
+                    if (ball.y + ball.height - ball.speed <= brick.y ||
+                        ball.y >= brick.y + brick.height - ball.speed) {
+                        ball.dy *= -1;
+                    }
+                    // ball is on either side of the brick, change x velocity
+                    else {
+                        ball.dx *= -1;
+                    }
+
+                    break;
+                }
+            }
+
+            // draw walls
+            context.fillStyle = getComputedStyle(document.body).getPropertyValue('--elements');
+            context.fillRect(0, 0, canvas.width, wallSize);
+            context.fillRect(0, 0, wallSize, canvas.height);
+            context.fillRect(canvas.width - wallSize, 0, wallSize, canvas.height);
+
+            // draw ball if it's moving
+            context.fillStyle = getComputedStyle(document.body).getPropertyValue('--text');
+            if (ball.dx || ball.dy) {
+                context.fillRect(ball.x, ball.y, ball.width, ball.height);
+            }
+
+            // draw bricks
+            bricks.forEach(function (brick) {
+                context.fillStyle = brick.color;
+                context.fillRect(brick.x, brick.y, brick.width, brick.height);
+            });
+
+            // draw paddle
+            context.fillStyle = getComputedStyle(document.body).getPropertyValue('--theme');
+            context.fillRect(paddle.x, paddle.y, paddle.width, paddle.height);
+        }
+
+        // listen to keyboard events to move the paddle
+        document.addEventListener('keydown', function (e) {
+            // left arrow key
+            if (e.which === 37) {
+                paddle.dx = -3;
+            }
+            // right arrow key
+            else if (e.which === 39) {
+                paddle.dx = 3;
+            }
+
+            // space key
+            // if they ball is not moving, we can launch the ball using the space key. ball
+            // will move towards the bottom right to start
+            if (ball.dx === 0 && ball.dy === 0 && e.which === 32) {
+                ball.dx = ball.speed;
+                ball.dy = ball.speed;
+            }
+
+            if (e.which === 32) {
+                document.getElementById("game").style.display = "";
+                document.getElementById("background").style.display = "none";
+                document.getElementById("pageStatus").classList.add("game");
+                document.getElementById("pageTitle").innerText = "302";
+                document.getElementById("pageDescription").innerText = "Score: " + score;
+            }
+        });
+
+        // listen to keyboard events to stop the paddle if key is released
+        document.addEventListener('keyup', function (e) {
+            if (((e.which === 37) && (paddle.dx == -3)) || ((e.which === 39) && (paddle.dx == 3))) {
+                paddle.dx = 0;
+            }
+        });
+
+        // start the game
+        requestAnimationFrame(loop);
+    </script>
 </body>
 
 </html>
