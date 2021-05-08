@@ -22,7 +22,8 @@ var VLC_EXE = window.localStorage.vlcExePath || 'C:\\Program Files\\VideoLAN\\VL
 
 //VLC processes and sync vars
 var vlcProcess, vlcIsOpen, forceVLCSkip = false, flags = {
-    allowedOffset: 0.6,
+    lowLatencyOffset: 0.6,
+    allowedOffset: 1,
     hostOffsetMultiplier: 2,
     offsetLimit: 50,
     seekFudge: 0.1,
