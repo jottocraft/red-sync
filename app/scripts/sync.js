@@ -1,37 +1,27 @@
 const fs = require("fs");
 const { execFile, exec } = require("child_process");
 const path = require("path");
-const timesync = require('timesync');
-
-// create a timesync instance
-var ts = timesync.create({
-    server: 'http://backend.jottocraft.com:8804/timesync',
-    interval: 10000
-});
-
-// get notified on changes in the offset
-ts.on('change', function (offset) {
-    console.log('changed offset', offset, 'ms');
-});
+const NtpTimeSync = require("ntp-time-sync");
 
 //Latest VLC module version
-const LATEST_MODULE_VER = 106;
+const LATEST_MODULE_VER = 200;
 
 //Local anime folder and VLC exe path vars
 var VLC_EXE = window.localStorage.vlcExePath || 'C:\\Program Files\\VideoLAN\\VLC\\vlc.exe';
 
 //VLC processes and sync vars
-var vlcProcess, vlcIsOpen, forceVLCSkip = false, flags = {
-    lowLatencyOffset: 0.6,
-    allowedOffset: 1,
-    hostOffsetMultiplier: 2,
-    offsetLimit: 50,
-    seekFudge: 0.1,
-    useTimeSync: false
-};
+var vlcProcess, vlcIsOpen, forceVLCSkip = false,
+    flags = { //The flags object provides cloud-updatable parameters that can be used to fine-tune red. The values below are the default/fallback as of this version.
+        allowedOffset: 1, //How far off (+/-) from where playback should be, in seconds, before re-syncing it
+        lowLatencyOffset: 0.6, //A lower version of allowedOffset to keep playback closer to where it should be. May cause more skipping.
+        hostOffsetMultiplier: 2, //How far out of sync the video needs to be for it to be considered deliberate seeking by the host (a multiplier relative to allowedOffset or lowLatencyOffset, depending on which is being used)
+        offsetLimit: 50, //How many times the time offset will be ran (not applicable to ntp mode)
+        seekFudge: 0.1, //When syncing playback from host, this amount will be added to compensate for delays between getting data from VLC and writing to firebase
+        timeSyncMethod: "ntp" //How the clock should be synchronized (either "ntp" for new fancy mode or "backend" for old server mode)
+    };
 
 //HTTP request auth and configuration
-jQuery.ajaxSetup({
+$.ajaxSetup({
     timeout: 1000, beforeSend: function (xhr) {
         xhr.setRequestHeader("Authorization", "Basic " + btoa(":anime"));
     }
@@ -50,7 +40,7 @@ var failCount = 0, videoFail = 0, startAt = new Date();
 setInterval(function () {
     if (vlcIsOpen) { //Only make web requests when VLC is open
         let preReq = new Date().getTime();
-        jQuery.getJSON("http://localhost:9090/requests/jottocraft.json", function (data) {
+        jQuery.getJSON("http://localhost:7019/requests/jottocraft.json", function (data) {
             let reqOffset = (new Date().getTime() - preReq) / 1000;
 
             if (data.length) {
@@ -84,19 +74,19 @@ function setClientPlayback(data, reqOffset) {
         //Open video in VLC if it's not already open
         if (data?.information?.meta?.filename) {
             if (!file.endsWith(data.information.meta.filename)) {
-                jQuery.get("http://localhost:9090/requests/jottocraft.json?command=playitem&input=" + file.replace("/", "\\"));
+                jQuery.get("http://localhost:7019/requests/jottocraft.json?command=playitem&input=" + file.replace("/", "\\"));
                 videoFail++;
             } else {
                 videoFail = 0;
             }
         } else {
-            jQuery.get("http://localhost:9090/requests/jottocraft.json?command=playitem&input=" + file.replace("/", "\\"));
+            jQuery.get("http://localhost:7019/requests/jottocraft.json?command=playitem&input=" + file.replace("/", "\\"));
             videoFail++;
         }
 
         //SYNC PLAYBACK SPEED STATE
         if (vlcPlaybackState.rate && (data.rate !== vlcPlaybackState.rate)) {
-            jQuery.get("http://localhost:9090/requests/jottocraft.json?command=rate&val=" + vlcPlaybackState.rate);
+            jQuery.get("http://localhost:7019/requests/jottocraft.json?command=rate&val=" + vlcPlaybackState.rate);
         }
 
         //SYNC PLAY/PAUSE STATE
@@ -110,9 +100,9 @@ function setClientPlayback(data, reqOffset) {
                 let time = (((getServerTime().getTime() - Number(vlcPlaybackState.state.split("|")[2])) / 1000) * vlcPlaybackState.rate) + Number(vlcPlaybackState.state.split("|")[1]);
 
                 if (time <= data.length) {
-                    if (data.state == "paused") jQuery.get("http://localhost:9090/requests/jottocraft.json?command=play");
+                    if (data.state == "paused") jQuery.get("http://localhost:7019/requests/jottocraft.json?command=play");
                     if (forceVLCSkip || (Math.abs(data.time - time) > allowedOffset)) {
-                        jQuery.get("http://localhost:9090/requests/jottocraft.json?command=directseek&val=" + (time + reqOffset + flags.seekFudge));
+                        jQuery.get("http://localhost:7019/requests/jottocraft.json?command=directseek&val=" + (time + reqOffset + flags.seekFudge));
                         forceVLCSkip = false;
 
                         if (data.length && (fluid.get("pref-discordSync") == "true")) {
@@ -133,9 +123,9 @@ function setClientPlayback(data, reqOffset) {
                 $("#visualPlaybackState").show();
             } else if (vlcPlaybackState.state.startsWith("pause|")) {
                 //Seek and pause
-                if (data.state == "playing") jQuery.get("http://localhost:9090/requests/jottocraft.json?command=pause");
+                if (data.state == "playing") jQuery.get("http://localhost:7019/requests/jottocraft.json?command=pause");
                 let pos = Number(vlcPlaybackState.state.split("|")[1]) * 100;
-                jQuery.get("http://localhost:9090/requests/jottocraft.json?command=commonseek&val=" + pos + "%25");
+                jQuery.get("http://localhost:7019/requests/jottocraft.json?command=commonseek&val=" + pos + "%25");
 
                 $("#visualPlaybackState").css("width", pos + "%");
                 $("#visualPlaybackState").show();
@@ -160,25 +150,25 @@ function setClientPlayback(data, reqOffset) {
             var selectedSpu = null;
             data.information.tracks.spu.forEach(t => { if (t.active) { activeSpu = t.val; } if (t.item == vlcPlaybackState.spuTrack) { selectedSpu = t.val; } });
             if (selectedSpu && (activeSpu !== selectedSpu)) {
-                jQuery.get("http://localhost:9090/requests/jottocraft.json?command=spu_track&val=" + selectedSpu);
+                jQuery.get("http://localhost:7019/requests/jottocraft.json?command=spu_track&val=" + selectedSpu);
             }
 
             var activeAudio = null;
             var selectedAudio = null;
             data.information.tracks.audio.forEach(t => { if (t.active) { activeAudio = t.val } if (t.item == vlcPlaybackState.audioTrack) { selectedAudio = t.val; } });
             if (selectedAudio && (activeAudio !== vlcPlaybackState.audioTrack)) {
-                jQuery.get("http://localhost:9090/requests/jottocraft.json?command=audio_track&val=" + selectedAudio);
+                jQuery.get("http://localhost:7019/requests/jottocraft.json?command=audio_track&val=" + selectedAudio);
             }
 
             var activeVideo = null;
             var selectedVideo = null;
             data.information.tracks.video.forEach(t => { if (t.active) { activeVideo = t.val } if (t.item == vlcPlaybackState.videoTrack) { selectedVideo = t.val; } });
             if (selectedVideo && (activeVideo !== vlcPlaybackState.videoTrack)) {
-                jQuery.get("http://localhost:9090/requests/jottocraft.json?command=video_track&val=" + selectedVideo);
+                jQuery.get("http://localhost:7019/requests/jottocraft.json?command=video_track&val=" + selectedVideo);
             }
         }
     } else {
-        jQuery.get("http://localhost:9090/requests/jottocraft.json?command=stop");
+        jQuery.get("http://localhost:7019/requests/jottocraft.json?command=stop");
     }
 }
 
@@ -344,8 +334,8 @@ function openVLC() {
         }).then(() => {
             //Check if VLC is already open, if not, open it
             return new Promise((resolve, reject) => {
-                jQuery.getJSON("http://localhost:9090/requests/jottocraft.json", (d) => { resolve(d); }).fail(function () {
-                    vlcProcess = execFile(VLC_EXE, ['--extraintf=http', '--http-port=9090', '--http-password=anime']);
+                jQuery.getJSON("http://localhost:7019/requests/jottocraft.json", (d) => { resolve(d); }).fail(function () {
+                    vlcProcess = execFile(VLC_EXE, ['--extraintf=http', '--http-port=7019', '--http-password=anime']);
                     resolve();
                 })
             });
@@ -357,7 +347,7 @@ function openVLC() {
                 } else {
                     var resolved = false;
                     var checkVLC = setInterval(() => {
-                        jQuery.getJSON("http://localhost:9090/requests/jottocraft.json", (r) => {
+                        jQuery.getJSON("http://localhost:7019/requests/jottocraft.json", (r) => {
                             clearInterval(checkVLC);
                             if (!resolved) {
                                 resolved = true;
@@ -417,7 +407,7 @@ function openVLC() {
 function installModule() {
     if (fs.existsSync(path.join(__dirname, "moduleinstaller.log"))) fs.unlinkSync(path.join(__dirname, "moduleinstaller.log"));
     return new Promise((resolve, reject) => {
-        jQuery.get("http://localhost:9090/requests/jottocraft.json?command=quit", next).fail(function (e) {
+        jQuery.get("http://localhost:7019/requests/jottocraft.json?command=quit", next).fail(function (e) {
             if (e.status == 404) {
                 if (vlcProcess && vlcProcess.kill && vlcProcess.kill()) {
                     next();
@@ -426,7 +416,7 @@ function installModule() {
                     window.alert("Please close the VLC window so that the integration module can be installed");
                     load("Please close the VLC window...");
                     let interval = setInterval(() => {
-                        jQuery.get("http://localhost:9090/requests/status.json").fail(function (e) {
+                        jQuery.get("http://localhost:7019/requests/status.json").fail(function (e) {
                             if (!res) {
                                 res = true;
                                 clearInterval(interval);
@@ -456,34 +446,48 @@ function installModule() {
         }
     })
 }
-
 //SERVER TIME
-function getServerTime() {
-    if (flags.useTimeSync) {
-        return new Date(ts.now());
-    }
-
-    var date = new Date();
-
-    date.setTime(date.getTime() + offset);
-
-    return date;
-}
-
-var offset = Infinity;
+const timeSync = NtpTimeSync.default.getInstance({
+    servers: [
+        "time1.google.com",
+        "time2.google.com",
+        "time3.google.com",
+        "time4.google.com"
+    ]
+});
+var offset = null;
 var runs = 0;
-function calcOffset() {
-    if (flags.useTimeSync) return new Promise((resolve, reject) => resolve());
+function calcOffset(isInterval) {
     return new Promise((resolve, reject) => {
-        jQuery.get("http://backend.jottocraft.com:8804/time", function (res, status, xhr) {
-            var newOffset = new Date(Number(res)).getTime() - new Date().getTime();
-            if (newOffset < offset) offset = newOffset;
-            runs++;
-            if (runs >= flags.offsetLimit) clearInterval(timerInterval);
-            resolve();
-        });
-    })
+        if (flags.timeSyncMethod == "ntp") {
+            timeSync.getTime().then(function (result) {
+                offset = result.offset;
+                resolve();
+            });
+        } else {
+            $.getJSON("https://backend.jottocraft.com/red/timesync/time", function (data) {
+                var newOffset = new Date(data.serverTime).getTime() - new Date().getTime();
+                if ((newOffset < offset) || (offset == null)) offset = newOffset;
+                runs++;
+                if (runs >= flags.offsetLimit) clearInterval(timerInterval);
+                resolve();
+            });
+        }
+    }).then(() => {
+        if (isInterval) setTimeout(() => calcOffset(true), 10000);
+    });
+}
+function getServerTime() {
+    return new Date(new Date().getTime() + (offset || 0));
 }
 
-var timerInterval = setInterval(calcOffset, 5000);
-calcOffset();
+//Heartbeat for debugging clock synchronization
+(function heartbeat() {
+    $("#clockSecond").text(getServerTime().getSeconds());
+    $("#clockHeartbeat").css("visibility", "visible");
+    setTimeout(() => $("#clockHeartbeat").css("visibility", "hidden"), 100);
+
+    setTimeout(heartbeat, 1000 - getServerTime().getMilliseconds());
+})();
+
+calcOffset(true);

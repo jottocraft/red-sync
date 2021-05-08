@@ -350,9 +350,9 @@ function updateUI() {
                                     <p><b>Copy the file to the anime folder</b><p>
                                     <p>Copy the folder or file(s) you downloaded, without renaming it, to the anime folder at <span class="animeFolderPath">${ANIME_FOLDER}</span>.</p>
                                     <br />
-                                    <button onclick="moveAnimeFolder()" class="btn outline"><i class="material-icons">folder</i> Change anime folder location</button>
+                                    <button onclick="moveAnimeFolder()" class="btn outline"><i class="fluid-icon">folder</i> Change anime folder location</button>
                                     <br /><br />
-                                    <button onclick="manuallySetFile()" class="btn outline"><i class="material-icons">insert_drive_file</i> Manually set file location</button>
+                                    <button onclick="manuallySetFile()" class="btn outline"><i class="fluid-icon">insert_drive_file</i> Manually set file location</button>
                                     <br /><br /><br />
                                     <button onclick="showPlayer(group)" class="btn">Done</button>
                                 </div>
@@ -388,7 +388,7 @@ function updateUI() {
             showLobby("person_outline", "Host disconnected", `
                     <p>The host of this group has left. You can take wait for the host to rejoin or take control of the group in the settings menu.</p>
                     <br />
-                    ${!group.access.hostLocked ? `<button onclick="host()" class="btn outline"><i class="material-icons">perm_identity</i> Take control</button>` : ``}
+                    ${!group.access.hostLocked ? `<button onclick="host()" class="btn outline"><i class="fluid-icon">perm_identity</i> Take control</button>` : ``}
                 `, true);
             setUserStatus("noHost");
         } else {
@@ -421,8 +421,8 @@ firebase.auth().onAuthStateChanged(function (user) {
                         showLobby("groups", "Join a group", `
                             <br />
                             <div style="margin: 0px; margin-bottom: -20px;" class="row">
-                                <button onclick="createGroup()" class="btn"><i class="material-icons">group_add</i> Create a group</button>
-                                <button onclick="loadGroups()" class="btn outline"><i class="material-icons">refresh</i> Reload list</button>
+                                <button onclick="createGroup()" class="btn"><i class="fluid-icon">group_add</i> Create a group</button>
+                                <button onclick="loadGroups()" class="btn outline"><i class="fluid-icon">refresh</i> Reload list</button>
                             </div>
                         `, true);
                         $("#groupList").show();
@@ -441,7 +441,7 @@ firebase.auth().onAuthStateChanged(function (user) {
             showLobby("apps", "Cannot find VLC", `
                 <p>VLC Sync cannot find the VLC exe on your computer. Make sure you have VLC installed, then click the button below to set the VLC exe path.</p>
                 <br />
-                <button onclick="setVLCPath()" class="btn outline"><i class="material-icons">insert_drive_file</i> Set VLC path</button>
+                <button onclick="setVLCPath()" class="btn outline"><i class="fluid-icon">insert_drive_file</i> Set VLC path</button>
             `, true);
         }
     } else {
@@ -555,7 +555,7 @@ function openVLC() {
                 <p>There's a newer version of the VLC sync integration module. Click the button below to install the latest version.</p>
                 <p>Since VLC installs to the program files folder, you'll need to allow administrator access.</p>
                 <br />
-                <button id="installModBtn" class="btn"><i class="material-icons">security</i> Update the module</button>
+                <button id="installModBtn" class="btn"><i class="fluid-icon">security</i> Update the module</button>
             `, true);
                 setUserStatus("module");
                 $("#installModBtn").click(() => {
@@ -570,7 +570,7 @@ function openVLC() {
                 <p>Installing the module will not overwrite exiting VLC files and will only run when you are using VLC Sync.</p>
                 <p>Since VLC installs to the program files folder, you'll need to allow administrator access to install the module.</p>
                 <br />
-                <button id="installModBtn" class="btn"><i class="material-icons">security</i> Install the module</button>
+                <button id="installModBtn" class="btn"><i class="fluid-icon">security</i> Install the module</button>
             `, true);
             setUserStatus("module");
             $("#installModBtn").click(() => {
@@ -640,7 +640,7 @@ function showPlayer(group) {
                     <br />
                     <div style="display: inline-block; text-align: left;">
                         <div id="trackSyncSwitch" onclick="toggleTrackSync()" class="switch ${localTrackSync ? "active" : ""}"><span class="head"></span></div>
-                        <div class="label"><i class="material-icons">subtitles</i> Sync subtitles, audio, and video tracks</div>
+                        <div class="label"><i class="fluid-icon">subtitles</i> Sync subtitles, audio, and video tracks</div>
                     </div>
                 `, true);
             } else if (group.status.state.startsWith("pause|")) {
@@ -863,7 +863,7 @@ function loadGroups() {
                 if ((group.access && group.access.visible) || (group.createdBy == firebase.auth().currentUser.uid)) {
                     groupHTML += /*html*/`
                         <div class="group">
-                            ${group.createdBy == firebase.auth().currentUser.uid ? `<span class="owner"><i class="material-icons">star</i></span>` : ``}
+                            ${group.createdBy == firebase.auth().currentUser.uid ? `<span class="owner"><i class="fluid-icon">star</i></span>` : ``}
                             <span class="name">${group.status.name}</span>
                             <a onclick="joinGroup('${group.id}')" class="join">Join</a>
                         </div>

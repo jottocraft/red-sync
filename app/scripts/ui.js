@@ -267,7 +267,7 @@ function playerActionNeeded(title, desc, actions) {
     $("#sessionStatusAction div").html("");
     if (actions) {
         actions.forEach(action => {
-            $("#sessionStatusAction div").append(`<button>${action.icon ? `<i class="material-icons">${action.icon}</i>` : ``}${action.text}</button>`)
+            $("#sessionStatusAction div").append(`<button>${action.icon ? `<i class="fluid-icon">${action.icon}</i>` : ``}${action.text}</button>`)
             $("#sessionStatusAction div button:last-child").click(action.action);
         })
     }
@@ -290,7 +290,7 @@ function actionNeeded(title, desc, actions) {
     $("#actionAlert div").html("");
     if (actions) {
         actions.forEach(action => {
-            $("#actionAlert div").append(`<button>${action.icon ? `<i class="material-icons">${action.icon}</i>` : ``}${action.text}</button>`)
+            $("#actionAlert div").append(`<button>${action.icon ? `<i class="fluid-icon">${action.icon}</i>` : ``}${action.text}</button>`)
             $("#actionAlert div button:last-child").click(action.action);
         })
     }

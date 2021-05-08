@@ -1,20 +1,20 @@
 --[==========================================================================[
- jottocraft.lua: code for processing VLC sync integration commands
+ jottocraft.lua: Code for processing red / VLC sync integration commands
 --[==========================================================================[
- Copyright (C) 2020 jottocraft
- $Id$
+ Copyright (c) 2007-2021 the VideoLAN team and jottocraft
+ Licenced under the GNU General Public License v2.0 (https://github.com/jottocraft/red/blob/master/LICENSE)
 
  Authors: jottocraft <hello@jottocraft.com>
+ Antoine Cellerier <dionoea at videolan dot org>
+ Rob Jonson <rob at hobbyistsoftware.com>
 --]==========================================================================]
 
-module("jottocraft",package.seeall)
+module("jottocraft", package.seeall)
 
-local common = require ("common")
-local dkjson = require ("dkjson")
-
+local common = require("common")
+local dkjson = require("dkjson")
 
 processcommands = function ()
-
     local input = _GET['input']
     local command = _GET['command']
     local val = _GET['val']
@@ -22,6 +22,7 @@ processcommands = function ()
     local options = _GET['option']
     local name = _GET['name']
     local duration = tonumber(_GET['duration'])
+
     if type(options) ~= "table" then -- Deal with the 0 or 1 option case
         options = { options }
     end
@@ -38,24 +39,20 @@ processcommands = function ()
         end
     elseif command == "stop" then
         vlc.playlist.stop()
-    elseif command == "addsubtitle" then
-        vlc.input.add_subtitle (val)
     elseif command == "commonseek" then
         common.seek(val)
-	elseif command == "directseek" then
-        vlc.var.set(vlc.object.input(),"time", val * 1000000)
-	elseif command == "offsetseek" then
-        vlc.var.set(vlc.object.input(),"time", (val + (os.time() - base)) * 1000000)
-    elseif command == "key" then
-        common.hotkey("key-"..val)
+	elseif command == "playerseek" then
+        vlc.player.seek_by_time_absolute(val * 1000000) 
+    elseif command == "debug" then
+        vlc.osd.message("Debug message")
     elseif command == "rate" then
-        vlc.var.set(vlc.object.input(),"rate", val)
+        vlc.player.set_rate(val)
     elseif command == "audio_track" then
-        vlc.var.set(vlc.object.input(), "audio-es", val)
+        vlc.player.toggle_audio_track(val)
     elseif command == "video_track" then
-        vlc.var.set(vlc.object.input(), "video-es", val)
+        vlc.player.toggle_video_track(val)
     elseif command == "spu_track" then
-        vlc.var.set(vlc.object.input(), "spu-es", val)
+        vlc.player.toggle_spu_track(val)
     elseif command == "quit" then
         vlc.misc.quit()
     end
@@ -63,19 +60,6 @@ processcommands = function ()
     local input = nil
     local command = nil
     local val = nil
-
-end
-
---utilities for formatting output
-
-function xmlString(s)
-    if (type(s)=="string") then
-        return vlc.strings.convert_xml_special_chars(s)
-    elseif (type(s)=="number") then
-        return common.us_tostring(s)
-    else
-        return tostring(s)
-    end
 end
 
 --dkjson outputs numbered tables as arrays
@@ -104,58 +88,38 @@ printTableAsJson = function (dict)
     print(output)
 end
 
-getValueArray = function (o,var)
-	local result = {}
-	
-	local current = vlc.var.get( o, var )
-    local v, l = vlc.var.get_list( o, var )
-	
-	for i,val in ipairs(v) do
-		local obj = {}
-		obj.active = current == val
-		obj.val = val
-		obj.item = l[i]
-        table.insert(result, obj)
-    end
-	
-	return result
-end
-
 getstatus = function ()
 
-
-    local input = vlc.object.input()
-    local item = vlc.input.item()
+    local item = vlc.player.item()
     local playlist = vlc.object.playlist()
 
-    local s ={}
+    local res = {}
 
-    s.jottocraft=106
-    s.version=vlc.misc.version()
+    res.jottocraft=200
+    res.version=vlc.misc.version()
 
-    if input then
-        s.time = vlc.var.get(input,"time") / 1000000
-        s.position=vlc.var.get(input,"position")
-        s.rate=vlc.var.get(input,"rate")
-    end
+    res.state = vlc.playlist.status()
+    res.rate= vlc.player.get_rate()
 
     if item then
-        s.length=item:duration()
-    end
-
-    s.state=vlc.playlist.status()
-
-    if (item) then
-        s.information={}
-		
-		s.information.tracks = {}
-
-		s.information.tracks.spu = getValueArray(vlc.object.input(), "spu-es")
-		s.information.tracks.audio = getValueArray(vlc.object.input(), "audio-es")
-		s.information.tracks.video = getValueArray(vlc.object.input(), "video-es")
+        res.time = vlc.player.get_time() / 1000000
+        res.length = item:duration()
+        
+        res.metas = item:metas()
+        res.tracks = {}
 			
-        s.information.meta=item:metas()
+        local info = item:info()
+        for k, v in pairs(info) do
+            local streamTable = {}
+            for k2, v2 in pairs(v) do
+                local tag = string.gsub(k2, " ", "_")
+                streamTable[tag] = v2
+            end
+
+            res.tracks[k] = streamTable
+        end
     end
-    return s
+
+    return res
 end
 

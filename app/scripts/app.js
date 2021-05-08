@@ -69,7 +69,7 @@ firebase.auth().onAuthStateChanged(function (user) {
                             $(".profileImage").html("");
                         } else {
                             $(".profileImage").css("background-image", "");
-                            $(".profileImage").html(`<i class="material-icons">account_circle</i>`);
+                            $(".profileImage").html(`<i class="fluid-icon">account_circle</i>`);
                         }
                         $(".profileImage").show();
                         $(".profileMenu .redEmail").text(user.email || "You are using a Guest account");
@@ -298,18 +298,18 @@ function joinSession(id, accessCode) {
 
                     if (data.host == firebase.auth().currentUser.uid) {
                         setNavVisibility("infoEditNav", true, "statusAND");
-                        $("#hostNav").html(`<i class="material-icons">sync_disabled</i> <span class="label">Give up control</span>`);
+                        $("#hostNav").html(`<i class="fluid-icon">sync_disabled</i> <span class="label">Give up control</span>`);
                         $('#syncControlsArea .hostControls').show();
                         $('#syncControlsArea .clientControls').hide();
                         vlcPlaybackState.host = true;
                     } else {
-                        $("#hostNav").html(`<i class="material-icons">settings_remote</i> <span class="label">Take control</span>`);
+                        $("#hostNav").html(`<i class="fluid-icon">settings_remote</i> <span class="label">Take control</span>`);
                         $('#syncControlsArea .hostControls').hide();
                         $('#syncControlsArea .clientControls').show();
                         vlcPlaybackState.host = false;
                     }
                 } else {
-                    $("#hostNav").html(`<i class="material-icons">settings_remote</i> <span class="label">Take control</span>`);
+                    $("#hostNav").html(`<i class="fluid-icon">settings_remote</i> <span class="label">Take control</span>`);
                     $('#syncControlsArea .hostControls').hide();
                     $('#syncControlsArea .clientControls').show();
                     vlcPlaybackState = { host: false };
@@ -486,7 +486,7 @@ function joinSession(id, accessCode) {
                             if ((data[uid] == "hosting") || (data[uid] == "openAFile")) icon = "settings_remote"
                             if (data[uid] == "syncing") icon = "play_circle_filled"
                             if (data[uid].toLowerCase().includes("waiting") || (data[uid] == "sessionScheduled")) icon = "hourglass_empty"
-                            html += `<p><i class="material-icons">${icon}</i> ${username}</p>`;
+                            html += `<p><i class="fluid-icon">${icon}</i> ${username}</p>`;
                             resolve();
                         })
                     }))
@@ -739,18 +739,18 @@ function getSessions(list) {
                                     <h5>${sessionInfo.name}</h5>
                                     <div class="details">
                                         <div>
-                                            <i class="material-icons">visibility</i>
+                                            <i class="fluid-icon">visibility</i>
                                             <span>${viewers || 0} viewers</span>
                                         </div>
                                         ${sessionInfo.content ? `
                                             <div>
-                                                <i class="material-icons">movie</i>
+                                                <i class="fluid-icon">movie</i>
                                                 <span>${sessionInfo.content}</span>
                                             </div>
                                         ` : ``}
                                         ${sessionInfo.scheduledStart ? `
                                             <div>
-                                                <i class="material-icons">schedule</i>
+                                                <i class="fluid-icon">schedule</i>
                                                 <span>Scheduled to start ${moment(sessionInfo.scheduledStart).calendar()}</span>
                                             </div>
                                         ` : ``}
@@ -766,7 +766,7 @@ function getSessions(list) {
                                     <h5>Unlisted session (from clipboard)</h5>
                                     <div class="details">
                                         <div>
-                                            <i class="material-icons">visibility_off</i>
+                                            <i class="fluid-icon">visibility_off</i>
                                             <span>Click here to try joining the unlisted session you copied</span>
                                         </div>
                                     </div>

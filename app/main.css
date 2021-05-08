@@ -1,3 +1,8 @@
+:root, body {
+    --theme: #cc4545 !important;
+    --themeText: white !important;
+}
+
 #sessionList {
     width: 400px;
     height: 450px;
