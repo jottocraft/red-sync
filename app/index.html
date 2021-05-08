@@ -226,7 +226,7 @@
                             </div>
                             <br />
                             <div>
-                                <div onclick="fluid.set('pref-lowLatency')" class="switch active pref-lowLatency"><span
+                                <div onclick="fluid.set('pref-lowLatency')" class="switch pref-lowLatency"><span
                                         class="head"></span>
                                 </div>
                                 <div class="label"><i class="fluid-icon">settings_input_antenna</i> Low latency</div>
@@ -551,9 +551,12 @@
         <table class="table">
           <tbody>
             <tr>
-              <th>Clock Heartbeat</th>
-              <td style="width: 32px;" id="clockSecond">1</td>
-              <td><div id="clockHeartbeat" style="visibility: hidden; background-color: var(--theme); height: 25px; width: 100%; border-radius: 10px;"></div></td>
+              <th style="width: 400px;">Synchronized Clock Seconds</th>
+              <td id="clockSecond">--</td>
+            </tr>
+            <tr>
+              <th style="width: 400px;">Playback Offset (ms)</th>
+              <td id="syncOffset">--</td>
             </tr>
           </tbody>
         </table>

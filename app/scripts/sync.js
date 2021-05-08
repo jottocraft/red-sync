@@ -13,8 +13,8 @@ var VLC_EXE = window.localStorage.vlcExePath || 'C:\\Program Files\\VideoLAN\\VL
 var vlcProcess, vlcIsOpen, forceVLCSkip = false,
     flags = { //The flags object provides cloud-updatable parameters that can be used to fine-tune red. The values below are the default/fallback as of this version.
         allowedOffset: 1, //How far off (+/-) from where playback should be, in seconds, before re-syncing it
-        lowLatencyOffset: 0.6, //A lower version of allowedOffset to keep playback closer to where it should be. May cause more skipping.
-        hostOffsetMultiplier: 2, //How far out of sync the video needs to be for it to be considered deliberate seeking by the host (a multiplier relative to allowedOffset or lowLatencyOffset, depending on which is being used)
+        lowLatencyOffset: 0.5, //A lower version of allowedOffset to keep playback closer to where it should be. May cause more skipping.
+        allowedHostOffset: 1, //How far out of sync the video needs to be for it to be considered deliberate seeking by the host
         offsetLimit: 50, //How many times the time offset will be ran (not applicable to ntp mode)
         seekFudge: 0.1, //When syncing playback from host, this amount will be added to compensate for delays between getting data from VLC and writing to firebase
         timeSyncMethod: "ntp" //How the clock should be synchronized (either "ntp" for new fancy mode or "backend" for old server mode)
@@ -41,8 +41,6 @@ setInterval(function () {
     if (vlcIsOpen) { //Only make web requests when VLC is open
         let preReq = new Date().getTime();
         jQuery.getJSON("http://localhost:7019/requests/jottocraft.json", function (data) {
-            let reqOffset = (new Date().getTime() - preReq) / 1000;
-
             if (data.length) {
                 $("#sessionStatusBar .videoDuration").text(minutesAndSeconds(data.length * 1000));
                 $("#sessionStatusBar .videoDuration").parent().show();
@@ -52,17 +50,17 @@ setInterval(function () {
 
             if (vlcPlaybackState.host) {
                 //HOST
-                syncHostPlayback(data, reqOffset);
+                syncHostPlayback(data, preReq);
             } else {
                 //CLIENT
-                setClientPlayback(data, reqOffset);
+                setClientPlayback(data, preReq);
             }
         });
     }
 }, 500);
 
-function setClientPlayback(data, reqOffset) {
-    var allowedOffset = flags.allowedOffset * vlcPlaybackState.rate;
+function setClientPlayback(data, preReqTime) {
+    var allowedOffset = ((fluid.get("pref-lowLatency") == "true") ? flags.lowLatencyOffset : flags.allowedOffset) * vlcPlaybackState.rate;
 
     if (vlcPlaybackState.video && file) {
         //SYNC VIDEO STATE
@@ -72,8 +70,8 @@ function setClientPlayback(data, reqOffset) {
         }
 
         //Open video in VLC if it's not already open
-        if (data?.information?.meta?.filename) {
-            if (!file.endsWith(data.information.meta.filename)) {
+        if (data.name) {
+            if (!file.endsWith(data.name)) {
                 jQuery.get("http://localhost:7019/requests/jottocraft.json?command=playitem&input=" + file.replace("/", "\\"));
                 videoFail++;
             } else {
@@ -90,58 +88,27 @@ function setClientPlayback(data, reqOffset) {
         }
 
         //SYNC PLAY/PAUSE STATE
-        if (vlcPlaybackState.state.startsWith("play|") || vlcPlaybackState.state.startsWith("pause|")) {
-            //Set video play/pause state
-            //Spec: play|video time|time (in ms) when the time was last set
-            //      pause|video time
+        if (vlcPlaybackState.state.startsWith("play|")) {
+            //Calculate expected time, update VLC time if it is off by more than the allowed offset
+            let calculatedTime = (((getServerTime().getTime() - Number(vlcPlaybackState.state.split("|")[2])) / 1000) * vlcPlaybackState.rate) + Number(vlcPlaybackState.state.split("|")[1]);
 
-            if (vlcPlaybackState.state.startsWith("play|")) {
-                //Calculate expected time, update VLC time if it is off by more than the allowed offset
-                let time = (((getServerTime().getTime() - Number(vlcPlaybackState.state.split("|")[2])) / 1000) * vlcPlaybackState.rate) + Number(vlcPlaybackState.state.split("|")[1]);
+            if (calculatedTime <= data.length) {
+                if (data.state == "paused") jQuery.get("http://localhost:7019/requests/jottocraft.json?command=play");
 
-                if (time <= data.length) {
-                    if (data.state == "paused") jQuery.get("http://localhost:7019/requests/jottocraft.json?command=play");
-                    if (forceVLCSkip || (Math.abs(data.time - time) > allowedOffset)) {
-                        jQuery.get("http://localhost:7019/requests/jottocraft.json?command=directseek&val=" + (time + reqOffset + flags.seekFudge));
-                        forceVLCSkip = false;
-
-                        if (data.length && (fluid.get("pref-discordSync") == "true")) {
-                            ipcRenderer.send("discord-activity", {
-                                details: $("#sessionStatusBar .videoName").text(),
-                                state: sessionDBCache.info.content,
-                                timestamps: {
-                                    startAt: startAt,
-                                    endAt: new Date((new Date().getTime() + (((data.length - (time + reqOffset + flags.seekFudge)) / vlcPlaybackState.rate) * 1000)) / 1000)
-                                }
-                            })
-                        }
-                    }
+                let adjustedTime = data.time + ((new Date().getTime() - preReqTime) / 1000);
+                $("#syncOffset").text(Math.round((adjustedTime - calculatedTime) * 1000));
+                if (forceVLCSkip || (Math.abs(adjustedTime - calculatedTime) > allowedOffset)) {
+                    jQuery.get("http://localhost:7019/requests/jottocraft.json?command=playerseek&val=" + (calculatedTime + flags.seekFudge));
+                    forceVLCSkip = false; //reset force vlc skip flag after syncing
                 }
-
-                let percentage = time / data.length;
-                $("#visualPlaybackState").css("width", (percentage * 100) + "%");
-                $("#visualPlaybackState").show();
-            } else if (vlcPlaybackState.state.startsWith("pause|")) {
-                //Seek and pause
-                if (data.state == "playing") jQuery.get("http://localhost:7019/requests/jottocraft.json?command=pause");
-                let pos = Number(vlcPlaybackState.state.split("|")[1]) * 100;
-                jQuery.get("http://localhost:7019/requests/jottocraft.json?command=commonseek&val=" + pos + "%25");
-
-                $("#visualPlaybackState").css("width", pos + "%");
-                $("#visualPlaybackState").show();
-
-                if (data.length && (fluid.get("pref-discordSync") == "true")) {
-                    ipcRenderer.send("discord-activity", {
-                        details: $("#sessionStatusBar .videoName").text(),
-                        state: sessionDBCache.info.content
-                    })
-                }
-            } else {
-                $("#visualPlaybackState").hide();
             }
-        } else {
-            $("#visualPlaybackState").hide();
+        } else if (vlcPlaybackState.state.startsWith("pause|")) {
+            //Seek and pause
+            if (data.state == "playing") jQuery.get("http://localhost:7019/requests/jottocraft.json?command=pause");
+            jQuery.get("http://localhost:7019/requests/jottocraft.json?command=playerseek&val=" + Number(vlcPlaybackState.state.split("|")[1]).toFixed(6));
         }
+
+        return;
 
         //SYNC TRACK STATE
         if ((fluid.get("pref-trackSync") !== "false") && data?.information?.tracks) {
@@ -172,20 +139,20 @@ function setClientPlayback(data, reqOffset) {
     }
 }
 
-function syncHostPlayback(data, reqOffset) {
-    var allowedOffset = flags.allowedOffset * vlcPlaybackState.rate * flags.hostOffsetMultiplier;
+function syncHostPlayback(data, preReqTime) {
+    var allowedOffset = flags.allowedHostOffset * data.rate;
 
     //SET VIDEO FILE STATE
-    if ((vlcPlaybackState.video !== data?.information?.meta?.filename) && data?.information?.meta?.filename) {
-        firebase.database().ref("/session/" + mySessionID + "/status/video").set(data?.information?.meta?.filename);
-    } else if (!data?.information?.meta?.filename && vlcPlaybackState.video) {
+    if (data.name && (vlcPlaybackState.video !== data.name)) {
+        firebase.database().ref("/session/" + mySessionID + "/status/video").set(data.name);
+    } else if (!data.name && vlcPlaybackState.video) {
         firebase.database().ref("/session/" + mySessionID + "/status/video").remove();
     }
 
     //GET EPISODE INFO
     var episodeData = null;
-    if (data?.information?.meta?.episodeNumber) {
-        episodeData = (data?.information?.meta?.seasonNumber ? "S" + data?.information?.meta?.seasonNumber : "") + "E" + data?.information?.meta?.episodeNumber;
+    if (data?.metas?.seasonNumber && data?.metas?.episodeNumber) {
+        episodeData = "S" + data?.metas?.seasonNumber + "E" + data?.metas?.episodeNumber;
     }
 
     //SET EPISODE INFO
@@ -197,68 +164,30 @@ function syncHostPlayback(data, reqOffset) {
 
     //SET PLAY/PAUSE STATE
     if (data.state == "playing") {
-        if (isNaN(getServerTime().getTime())) {
-            //If server time has not yet been calculated, reset the playback state so the state will be set when server time is ready
-            firebase.database().ref("/session/" + mySessionID + "/status/state").remove();
-            $("#visualPlaybackState").hide();
-        } else if (vlcPlaybackState.state && vlcPlaybackState.state.startsWith("play|")) {
-            //Calculate expected time from database, update database time if it has been changed by allowedOffset * 2
-            let time = (((getServerTime().getTime() - Number(vlcPlaybackState.state.split("|")[2])) / 1000) * vlcPlaybackState.rate) + Number(vlcPlaybackState.state.split("|")[1]);
-            if (forceVLCSkip || (Math.abs(data.time - time) > allowedOffset)) {
-                firebase.database().ref("/session/" + mySessionID + "/status/state").set("play|" + (data.time - reqOffset) + "|" + getServerTime().getTime());
-                forceVLCSkip = false;
-
-                if (data.length && data.time && (fluid.get("pref-discordSync") == "true")) {
-                    ipcRenderer.send("discord-activity", {
-                        details: $("#sessionStatusBar .videoName").text(),
-                        state: sessionDBCache.info.content,
-                        timestamps: {
-                            startAt: startAt,
-                            endAt: new Date((new Date().getTime() + (((data.length - (data.time - reqOffset)) / vlcPlaybackState.rate) * 1000)) / 1000)
-                        }
-                    })
-                }
-            }
-
-            let percentage = time / data.length;
-            $("#visualPlaybackState").css("width", (percentage * 100) + "%");
-            $("#visualPlaybackState").show();
+        //Calculate expected time from database, update database time if it has been changed by allowedOffset (based on flags.allowedHostOffset and data.rate, see above)
+        var shouldSync = false;
+        if (vlcPlaybackState.state && vlcPlaybackState.state.startsWith("play|")) {
+            let calculatedTime = (((getServerTime().getTime() - Number(vlcPlaybackState.state.split("|")[2])) / 1000) * vlcPlaybackState.rate) + Number(vlcPlaybackState.state.split("|")[1]);
+            let adjustedTime = data.time + ((new Date().getTime() - preReqTime) / 1000);
+            $("#syncOffset").text(Math.round((adjustedTime - calculatedTime) * 1000));
+            shouldSync = Math.abs(adjustedTime - calculatedTime) > allowedOffset;
         } else {
-            //If there is no current playback state, add it
-            firebase.database().ref("/session/" + mySessionID + "/status/state").set("play|" + (data.time - reqOffset) + "|" + getServerTime().getTime());
+            shouldSync = true;
+        }
 
-            if (data.length && data.time && (fluid.get("pref-discordSync") == "true")) {
-                ipcRenderer.send("discord-activity", {
-                    details: $("#sessionStatusBar .videoName").text(),
-                    state: sessionDBCache.info.content,
-                    timestamps: {
-                        startAt: startAt,
-                        endAt: new Date((new Date().getTime() + (((data.length - (data.time - reqOffset)) / vlcPlaybackState.rate) * 1000)) / 1000)
-                    }
-                })
-            }
+        if (forceVLCSkip || shouldSync) {
+            let adjustedTime = data.time + ((new Date().getTime() - preReqTime) / 1000);
+            firebase.database().ref("/session/" + mySessionID + "/status/state").set("play|" + adjustedTime + "|" + getServerTime().getTime()); //format: state|videoTime|clockTime
+            forceVLCSkip = false; //reset force vlc skip flag after syncing
         }
     } else if (data.state == "paused") {
         //Set pause state if it's not already set
-        if (vlcPlaybackState.state && (vlcPlaybackState.state !== "pause|" + data.position)) {
-            firebase.database().ref("/session/" + mySessionID + "/status/state").set("pause|" + data.position);
-
-            $("#visualPlaybackState").css("width", (Number(data.position) * 100) + "%");
-            $("#visualPlaybackState").show();
-
-            if (data.length && (fluid.get("pref-discordSync") == "true")) {
-                ipcRenderer.send("discord-activity", {
-                    details: $("#sessionStatusBar .videoName").text(),
-                    state: sessionDBCache.info.content
-                })
-            }
+        if (vlcPlaybackState.state !== "pause|" + data.time) {
+            firebase.database().ref("/session/" + mySessionID + "/status/state").set("pause|" + data.time);
         }
     } else if (data.state == "stopped") {
         //If VLC is stopped, remove playback state
         firebase.database().ref("/session/" + mySessionID + "/status/state").remove();
-        $("#visualPlaybackState").hide();
-    } else {
-        $("#visualPlaybackState").hide();
     }
 
     //SET PLAYBACK SPEED STATE
@@ -268,45 +197,21 @@ function syncHostPlayback(data, reqOffset) {
         firebase.database().ref("/session/" + mySessionID + "/status/rate").set(data.rate);
     }
 
-    //SET TRACK STATE
-    if (data?.information?.tracks) {
+    //SYNC SELECTED TRACK
+    if (data.tracks) {
         //For each track type, set the track in the database or remove from the database if the track is disabled
-        if (data.information.tracks.spu) {
-            data.information.tracks.spu.forEach(track => {
-                if (track.active) {
-                    if (track.item == "Disable") {
-                        firebase.database().ref("/session/" + mySessionID + "/status/spuTrack").remove();
-                    } else {
-                        firebase.database().ref("/session/" + mySessionID + "/status/spuTrack").set(track.item);
-                    }
+        ["spu", "audio", "video"].forEach(trackType => {
+            if (data.tracks[trackType]) {
+                let activeTrack = data.tracks[trackType].find(t => t.selected); //find item in tracks array that is selected
+                if (activeTrack) {
+                    firebase.database().ref("/session/" + mySessionID + "/status/" + trackType + "Track").set(activeTrack.id); //store selected track ID if it exists
+                } else {
+                    firebase.database().ref("/session/" + mySessionID + "/status/" + trackType + "Track").remove(); //remove track from database if there is no selected track
                 }
-            })
-        }
-        if (data.information.tracks.audio) {
-            data.information.tracks.audio.forEach(track => {
-                if (track.active) {
-                    if (track.item == "Disable") {
-                        firebase.database().ref("/session/" + mySessionID + "/status/audioTrack").remove();
-                    } else {
-                        firebase.database().ref("/session/" + mySessionID + "/status/audioTrack").set(track.item);
-                    }
-                }
-            })
-        }
-        if (data.information.tracks.video) {
-            data.information.tracks.video.forEach(track => {
-                if (track.active) {
-                    if (track.item == "Disable") {
-                        firebase.database().ref("/session/" + mySessionID + "/status/videoTrack").remove();
-                    } else {
-                        firebase.database().ref("/session/" + mySessionID + "/status/videoTrack").set(track.item);
-                    }
-                }
-            })
-        }
+            }
+        });
     }
 }
-
 
 //OPEN VLC ----------------------
 function openVLC() {

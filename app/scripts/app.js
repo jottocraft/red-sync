@@ -161,12 +161,14 @@ function joinSession(id, accessCode) {
                 return;
             };
 
-            firebase.database().ref("/session/" + id + "/members/" + firebase.auth().currentUser.uid).onDisconnect().remove().then(function () {
-                dbConnection = true;
-                if (!(isGlobalAdmin && (fluid.get("pref-adminStealth") == "true"))) {
-                    firebase.database().ref("/session/" + id + "/members/" + firebase.auth().currentUser.uid).set(userStatus);
-                }
-            });
+            if (false) {
+                firebase.database().ref("/session/" + id + "/members/" + firebase.auth().currentUser.uid).onDisconnect().remove().then(function () {
+                    dbConnection = true;
+                    if (!(isGlobalAdmin && (fluid.get("pref-adminStealth") == "true"))) {
+                        firebase.database().ref("/session/" + id + "/members/" + firebase.auth().currentUser.uid).set(userStatus);
+                    }
+                });
+            }
         });
 
         //Add info listener

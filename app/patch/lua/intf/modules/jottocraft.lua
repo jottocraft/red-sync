@@ -99,25 +99,19 @@ getstatus = function ()
     res.version=vlc.misc.version()
 
     res.state = vlc.playlist.status()
-    res.rate= vlc.player.get_rate()
+    res.rate = vlc.player.get_rate()
+    res.playing = vlc.player.is_playing()
 
     if item then
         res.time = vlc.player.get_time() / 1000000
         res.length = item:duration()
-        
+        res.name = item:name()
         res.metas = item:metas()
-        res.tracks = {}
-			
-        local info = item:info()
-        for k, v in pairs(info) do
-            local streamTable = {}
-            for k2, v2 in pairs(v) do
-                local tag = string.gsub(k2, " ", "_")
-                streamTable[tag] = v2
-            end
 
-            res.tracks[k] = streamTable
-        end
+        res.tracks = {}
+        res.tracks.video = vlc.player.get_video_tracks()
+        res.tracks.audio = vlc.player.get_audio_tracks()
+        res.tracks.spu = vlc.player.get_spu_tracks()
     end
 
     return res

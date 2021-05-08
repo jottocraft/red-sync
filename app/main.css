@@ -1,4 +1,4 @@
-:root, body {
+[data-theme-type=light], [data-theme-type=dark] {
     --theme: #cc4545 !important;
     --themeText: white !important;
 }
