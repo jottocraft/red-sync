@@ -166,7 +166,7 @@ function discordGame() {
       try {
         Discord.Activity
           .update(arg)
-          .catch(function (e) { console.error(e); });
+          .catch(function (e) { console.error("[Discord Rich Presence Error] " + e); });
       } catch (e) { }
     }
   })

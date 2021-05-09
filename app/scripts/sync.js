@@ -98,7 +98,7 @@ function setClientPlayback(data, preReqTime) {
                 let adjustedTime = data.time + ((new Date().getTime() - preReqTime) / 1000);
                 $("#syncOffset").text(Math.round((adjustedTime - calculatedTime) * 1000));
                 if (forceVLCSkip || (Math.abs(adjustedTime - calculatedTime) > allowedOffset)) {
-                    jQuery.get("http://localhost:7019/requests/jottocraft.json?command=playerseek&val=" + (calculatedTime + flags.seekFudge));
+                    jQuery.get("http://localhost:7019/requests/jottocraft.json?command=playerseek&val=" + Number(calculatedTime + flags.seekFudge).toFixed(6));
                     forceVLCSkip = false; //reset force vlc skip flag after syncing
                 }
             }
@@ -108,31 +108,21 @@ function setClientPlayback(data, preReqTime) {
             jQuery.get("http://localhost:7019/requests/jottocraft.json?command=playerseek&val=" + Number(vlcPlaybackState.state.split("|")[1]).toFixed(6));
         }
 
-        return;
-
         //SYNC TRACK STATE
-        if ((fluid.get("pref-trackSync") !== "false") && data?.information?.tracks) {
-            //If there is an active track 
-            var activeSpu = null;
-            var selectedSpu = null;
-            data.information.tracks.spu.forEach(t => { if (t.active) { activeSpu = t.val; } if (t.item == vlcPlaybackState.spuTrack) { selectedSpu = t.val; } });
-            if (selectedSpu && (activeSpu !== selectedSpu)) {
-                jQuery.get("http://localhost:7019/requests/jottocraft.json?command=spu_track&val=" + selectedSpu);
-            }
-
-            var activeAudio = null;
-            var selectedAudio = null;
-            data.information.tracks.audio.forEach(t => { if (t.active) { activeAudio = t.val } if (t.item == vlcPlaybackState.audioTrack) { selectedAudio = t.val; } });
-            if (selectedAudio && (activeAudio !== vlcPlaybackState.audioTrack)) {
-                jQuery.get("http://localhost:7019/requests/jottocraft.json?command=audio_track&val=" + selectedAudio);
-            }
-
-            var activeVideo = null;
-            var selectedVideo = null;
-            data.information.tracks.video.forEach(t => { if (t.active) { activeVideo = t.val } if (t.item == vlcPlaybackState.videoTrack) { selectedVideo = t.val; } });
-            if (selectedVideo && (activeVideo !== vlcPlaybackState.videoTrack)) {
-                jQuery.get("http://localhost:7019/requests/jottocraft.json?command=video_track&val=" + selectedVideo);
-            }
+        if ((fluid.get("pref-trackSync") !== "false") && data.tracks) {
+            //For each track type, check if the correct track is selected, if not, select the correct track
+            ["spu", "audio", "video"].forEach(trackType => {
+                if (data.tracks[trackType]) {
+                    var activeTrack = data.tracks[trackType].find(t => t.selected); //find item in tracks array that is selected
+                    if (!vlcPlaybackState[trackType + "Track"] && activeTrack) {
+                        //Disable selected track (no tracks of this type should be selected)
+                        jQuery.get("http://localhost:7019/requests/jottocraft.json?command=" + trackType + "_track&val=" + activeTrack.id);
+                    } else if ((activeTrack && activeTrack.id) !== vlcPlaybackState[trackType + "Track"]) {
+                        //Switch track (incorrect or no track selected)
+                        jQuery.get("http://localhost:7019/requests/jottocraft.json?command=" + trackType + "_track&val=" + vlcPlaybackState[trackType + "Track"]);
+                    }
+                }
+            });
         }
     } else {
         jQuery.get("http://localhost:7019/requests/jottocraft.json?command=stop");
@@ -160,6 +150,13 @@ function syncHostPlayback(data, preReqTime) {
         firebase.database().ref("/session/" + mySessionID + "/status/episode").set(episodeData);
     } else if (!episodeData && vlcPlaybackState.episode) {
         firebase.database().ref("/session/" + mySessionID + "/status/episode").remove();
+    }
+
+    //SET LENGTH
+    if (data.length && (data.length !== vlcPlaybackState.length)) {
+        firebase.database().ref("/session/" + mySessionID + "/status/length").set(data.length);
+    } else if (!data.length) {
+        firebase.database().ref("/session/" + mySessionID + "/status/length").remove();
     }
 
     //SET PLAY/PAUSE STATE
@@ -202,7 +199,7 @@ function syncHostPlayback(data, preReqTime) {
         //For each track type, set the track in the database or remove from the database if the track is disabled
         ["spu", "audio", "video"].forEach(trackType => {
             if (data.tracks[trackType]) {
-                let activeTrack = data.tracks[trackType].find(t => t.selected); //find item in tracks array that is selected
+                var activeTrack = data.tracks[trackType].find(t => t.selected); //find item in tracks array that is selected
                 if (activeTrack) {
                     firebase.database().ref("/session/" + mySessionID + "/status/" + trackType + "Track").set(activeTrack.id); //store selected track ID if it exists
                 } else {

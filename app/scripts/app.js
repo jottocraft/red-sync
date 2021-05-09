@@ -161,7 +161,7 @@ function joinSession(id, accessCode) {
                 return;
             };
 
-            if (false) {
+            if (true) { //set to false for debugging and preventing user from unregistering on disconnect
                 firebase.database().ref("/session/" + id + "/members/" + firebase.auth().currentUser.uid).onDisconnect().remove().then(function () {
                     dbConnection = true;
                     if (!(isGlobalAdmin && (fluid.get("pref-adminStealth") == "true"))) {
@@ -365,7 +365,7 @@ function joinSession(id, accessCode) {
                     if (fluid.get("pref-discordSync") == "true") ipcRenderer.send("discord-activity", {});
                     $('#syncControlsArea').hide();
                 } else {
-                    //Set status bar
+                    //Set video name
                     if (groupInfo.contentID && richContent && data.episode) {
                         var url = richContent.url + "/episode/" + Number(data.episode.split("E")[1]);
                         $("#sessionStatusBar .videoName").html(`<a onclick="shell.openExternal('${url}')" href="#">${data.episode}</a>`);
@@ -374,6 +374,32 @@ function joinSession(id, accessCode) {
                     } else {
                         $("#sessionStatusBar .videoName").text(data.video);
                     }
+
+                    //Set Discord rich presence
+                    var discordData = {
+                        details: "Watching " + (sessionDBCache.info.content || data.video),
+                        state: sessionDBCache.info.name,
+                        assets: {
+                            largeImage: 'red-sync-logo',
+                            largeText: 'Syncing VLC with Red'
+                        },
+                        party: {
+                            id: mySessionID,
+                            currentSize: sessionDBCache.viewers | 0,
+                            maxSize: 10
+                        }
+                    };
+                    if (data.state && data.state.startsWith("play|")) {
+                        var calculatedTime = (((getServerTime().getTime() - Number(data.state.split("|")[2])) / 1000) * (data.rate || 1)) + Number(data.state.split("|")[1]);
+                        discordData.timestamps = {
+                            startAt: new Date((new Date().getTime() / 1000) - calculatedTime),
+                            endAt: new Date((new Date().getTime() / 1000) + (data.length - calculatedTime))
+                        };
+                    }
+                    if ((sessionDBCache.info.content || data.video).toUpperCase().includes("RE:ZERO KARA HAJIMERU")) { discordData.assets.largeImage = "rezero"; discordData.assets.largeText = "Re:Zero"; }
+                    ipcRenderer.send("discord-activity", discordData);
+
+                    //Set video time
                     $("#sessionStatusBar").show();
 
                     if (data.host == firebase.auth().currentUser.uid) {
