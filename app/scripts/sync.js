@@ -2,6 +2,7 @@ const fs = require("fs");
 const { execFile, exec } = require("child_process");
 const path = require("path");
 const NtpTimeSync = require("ntp-time-sync");
+const url = require('url');
 
 //Latest VLC module version
 const LATEST_MODULE_VER = 200;
@@ -70,8 +71,8 @@ function setClientPlayback(data, preReqTime) {
         }
 
         //Open video in VLC if it's not already open
-        if (data.name) {
-            if (!file.endsWith(data.name)) {
+        if (data?.metas?.filename) {
+            if (!file.endsWith(data?.metas?.filename)) {
                 jQuery.get("http://localhost:7019/requests/jottocraft.json?command=playitem&input=" + file.replace("/", "\\"));
                 videoFail++;
             } else {
@@ -133,23 +134,35 @@ function syncHostPlayback(data, preReqTime) {
     var allowedOffset = flags.allowedHostOffset * data.rate;
 
     //SET VIDEO FILE STATE
-    if (data.name && (vlcPlaybackState.video !== data.name)) {
-        firebase.database().ref("/session/" + mySessionID + "/status/video").set(data.name);
-    } else if (!data.name && vlcPlaybackState.video) {
+    if (data?.metas?.filename && (vlcPlaybackState.video !== data?.metas?.filename)) {
+        firebase.database().ref("/session/" + mySessionID + "/status/video").set(data?.metas?.filename);
+    } else if (!data?.metas?.filename && vlcPlaybackState.video) {
         firebase.database().ref("/session/" + mySessionID + "/status/video").remove();
     }
 
-    //GET EPISODE INFO
-    var episodeData = null;
-    if (data?.metas?.seasonNumber && data?.metas?.episodeNumber) {
-        episodeData = "S" + data?.metas?.seasonNumber + "E" + data?.metas?.episodeNumber;
+    //SET EPISODE INFO
+    if (data?.metas?.episodeNumber && (vlcPlaybackState.episode !== Number(data?.metas?.episodeNumber))) {
+        firebase.database().ref("/session/" + mySessionID + "/status/episode").set(Number(data?.metas?.episodeNumber));
+    } else if (!data?.metas?.episodeNumber && vlcPlaybackState.episode) {
+        firebase.database().ref("/session/" + mySessionID + "/status/episode").remove();
     }
 
-    //SET EPISODE INFO
-    if ((vlcPlaybackState.episode !== episodeData) && episodeData) {
-        firebase.database().ref("/session/" + mySessionID + "/status/episode").set(episodeData);
-    } else if (!episodeData && vlcPlaybackState.episode) {
-        firebase.database().ref("/session/" + mySessionID + "/status/episode").remove();
+    //SET CONTENT NAME
+    var contentName = data?.metas?.artist ? (data?.metas?.artist + " - " + ((data?.metas?.album && (data?.metas?.album !== data.name) && (data?.metas?.album !== data?.metas?.artist)) ? data?.metas?.album + " - " : "") + data.name) : data.name;
+    if (contentName == data?.metas?.filename) contentName = null;
+    if (contentName && (vlcPlaybackState.name !== contentName)) {
+        firebase.database().ref("/session/" + mySessionID + "/status/name").set(contentName);
+    } else if (!contentName && vlcPlaybackState.name) {
+        firebase.database().ref("/session/" + mySessionID + "/status/name").remove();
+    }
+
+    //SET CONTENT TYPE
+    if (data.tracks && data.tracks.audio && data.tracks.audio.length && data.tracks.video && data.tracks.video.length) {
+        firebase.database().ref("/session/" + mySessionID + "/status/type").set("video");
+    } else if (data.tracks && data.tracks.audio && data.tracks.audio.length) {
+        firebase.database().ref("/session/" + mySessionID + "/status/type").set("audio");
+    } else {
+        firebase.database().ref("/session/" + mySessionID + "/status/type").remove();
     }
 
     //SET LENGTH
@@ -217,7 +230,13 @@ function openVLC() {
     return new Promise((fResolve, fReject) => {
         new Promise((resolve, reject) => {
             //Check the VLC exe path
-            if (fs.existsSync(VLC_EXE)) {
+            if (process.platform == "win32") {
+                $("#redVLCPath").show();
+            }
+
+            if (process.platform == "linux") {
+                resolve();
+            } else if (fs.existsSync(VLC_EXE)) {
                 resolve();
             } else if ((VLC_EXE == 'C:\\Program Files\\VideoLAN\\VLC\\vlc.exe') && fs.existsSync('C:\\Program Files (x86)\\VideoLAN\\VLC\\vlc.exe')) {
                 window.localStorage.vlcExePath = 'C:\\Program Files (x86)\\VideoLAN\\VLC\\vlc.exe';
@@ -237,7 +256,11 @@ function openVLC() {
             //Check if VLC is already open, if not, open it
             return new Promise((resolve, reject) => {
                 jQuery.getJSON("http://localhost:7019/requests/jottocraft.json", (d) => { resolve(d); }).fail(function () {
-                    vlcProcess = execFile(VLC_EXE, ['--extraintf=http', '--http-port=7019', '--http-password=anime']);
+                    if (process.platform == "win32") {
+                        vlcProcess = execFile(VLC_EXE, ['--extraintf=http', '--http-port=7019', '--http-password=anime']);
+                    } else {
+                        vlcProcess = exec("vlc --extraintf=http --http-port=7019 --http-password=anime");
+                    }                    
                     resolve();
                 })
             });
@@ -344,7 +367,9 @@ function installModule() {
                     resolve();
                 }
             }, 1000);
-            exec(`"${path.join(__dirname, "copymodule.bat").replace("/", "\\")}" "${path.join(VLC_EXE, "..").replace("/", "\\")}"`);
+            if (process.platform == "win32") {
+                exec(`"${path.join(__dirname, "copymodule.bat").replace("/", "\\")}" "${path.join(VLC_EXE, "..").replace("/", "\\")}"`);
+            }
         }
     })
 }

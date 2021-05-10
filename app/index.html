@@ -198,7 +198,7 @@
                             <span class="hostName" style="max-width: 150px;"></span>
                         </div>
                         <div class="status">
-                            <i class="fluid-icon">movie</i>
+                            <i class="videoTypeIcon fluid-icon">play_arrow</i>
                             <span class="videoName" style="max-width: 250px;"></span>
                         </div>
                         <div style="display: none;" class="status">
@@ -310,10 +310,10 @@
                         <br />
                     </div>
                     <div class="item">
-                        <p>Video download URL (optional)</p>
+                        <p>Content download URL (optional)</p>
                         <div>
                             <i class="inputIcon fluid-icon">insert_link</i>
-                            <input id="sessionDownloadURL" class="inputIcon" placeholder="Video download URL" />
+                            <input id="sessionDownloadURL" class="inputIcon" placeholder="Content download URL" />
                         </div>
                     </div>
                 </div>
@@ -517,11 +517,13 @@
         <div class="themeSelectionUI"></div>
         <br /><br />
         <h4 style="font-weight: bold;">Video Playback</h4>
-        <p>Your VLC path is currently set to <a class="vlcProgramPath" href="#"></a>. If this isn't correct or if you
-            want to use a different version of VLC, click the button below to set the VLC location.</p>
-        <button onclick="setVLCPath()" class="btn outline"><i class="fluid-icon">video_settings</i> Set VLC
-            location</button>
-        <br /><br />
+        <div style="display: none;" id="redVLCPath">
+            <p>Your VLC path is currently set to <a class="vlcProgramPath" href="#"></a>. If this isn't correct or if you
+                want to use a different version of VLC, click the button below to set the VLC location.</p>
+            <button onclick="setVLCPath()" class="btn outline"><i class="fluid-icon">video_settings</i> Set VLC
+                location</button>
+            <br /><br />
+        </div>
         <p>Discord</p>
         <div>
             <div onclick="fluid.set('pref-discordSync')" class="switch pref-discordSync"><span class="head"></span>

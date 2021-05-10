@@ -45,26 +45,30 @@ if (!isDev) {
   }, 600000);
 
   //Uninstall old version
-  var oldVersionMangaer = path.join(__dirname, "..", "..", "..", "..", "vlc-sync", "Update.exe");
-  if (fs.existsSync(oldVersionMangaer)) {
-    console.log("Found old version. Automatically uninstalling...");
-    execFile(oldVersionMangaer, ["--uninstall"], function() {
-      try {fs.rmdirSync(path.join(oldVersionMangaer, ".."), { recursive: true });} catch(e) {}
-    });
+  if (process.platform == "win32") {
+    var oldVersionMangaer = path.join(__dirname, "..", "..", "..", "..", "vlc-sync", "Update.exe");
+    if (fs.existsSync(oldVersionMangaer)) {
+      console.log("Found old version. Automatically uninstalling...");
+      execFile(oldVersionMangaer, ["--uninstall"], function () {
+        try { fs.rmdirSync(path.join(oldVersionMangaer, ".."), { recursive: true }); } catch (e) { }
+      });
+    }
   }
 
   //Set start menu tile color
   try {
-    var sqpath = path.join(__dirname, "..", "..", "..");
-    if (fs.existsSync(path.join(sqpath, "Red (beta).exe"))) {
-      fs.copyFile(path.join(__dirname, "tile.png"), path.join(sqpath, "tile.png"), (err) => {
-        fs.copyFile(path.join(__dirname, "smallTile.png"), path.join(sqpath, "smallTile.png"), (err) => {
-          fs.copyFile(path.join(__dirname, "Red (beta).VisualElementsManifest.xml"), path.join(sqpath, "Red (beta).VisualElementsManifest.xml"), (err) => {
-            if (err) throw err;
-            console.log('start menu tile set');
+    if (process.platform == "win32") {
+      var sqpath = path.join(__dirname, "..", "..", "..");
+      if (fs.existsSync(path.join(sqpath, "Red (beta).exe"))) {
+        fs.copyFile(path.join(__dirname, "tile.png"), path.join(sqpath, "tile.png"), (err) => {
+          fs.copyFile(path.join(__dirname, "smallTile.png"), path.join(sqpath, "smallTile.png"), (err) => {
+            fs.copyFile(path.join(__dirname, "Red (beta).VisualElementsManifest.xml"), path.join(sqpath, "Red (beta).VisualElementsManifest.xml"), (err) => {
+              if (err) throw err;
+              console.log('start menu tile set');
+            });
           });
         });
-      });
+      }
     }
   } catch (e) { }
 }
@@ -79,9 +83,10 @@ function createWindow() {
     height: 600,
     webPreferences: {
       nodeIntegration: true,
+      contextIsolation: false,
       enableRemoteModule: true
     },
-    icon: __dirname + "/favicon.ico",
+    icon: process.platform == "win32" ? __dirname + "/favicon.ico" : __dirname + "/build.png",
     title: "Red (beta)",
     autoHideMenuBar: true
   })
@@ -157,6 +162,8 @@ if (!isDev) {
 }
 
 function discordGame() {
+  if (process.platform !== "win32") return;
+
   const Discord = require('discord-game');
   const isRequireDiscord = false;
   const hasDiscord = Discord.create('749736883096911892', isRequireDiscord);

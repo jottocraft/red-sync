@@ -334,7 +334,7 @@ function joinSession(id, accessCode) {
                     //Set status
                     $("#syncStatus span").text("Open a file");
                     $("#sessionNavStatus span").text("Open a file");
-                    $("#syncDetails").text("To begin syncing playback to this session, open a video file in VLC");
+                    $("#syncDetails").text("To begin syncing playback to this session, open a file in VLC");
                     $("#syncStatus i, #sessionNavStatus i").text("insert_drive_file");
                     playerResolved();
                     setUserStatus("openAFile");
@@ -358,7 +358,7 @@ function joinSession(id, accessCode) {
                     //Set status
                     $("#syncStatus span").text("Waiting for controller");
                     $("#sessionNavStatus span").text("Waiting");
-                    $("#syncDetails").text("The controller of this session hasn't selected a video to sync yet");
+                    $("#syncDetails").text("The controller of this session hasn't selected a file to sync yet");
                     $("#syncStatus i, #sessionNavStatus i").text("hourglass_empty");
                     playerResolved();
                     setUserStatus("waitingForHost");
@@ -367,26 +367,37 @@ function joinSession(id, accessCode) {
                 } else {
                     //Set video name
                     if (groupInfo.contentID && richContent && data.episode) {
-                        var url = richContent.url + "/episode/" + Number(data.episode.split("E")[1]);
-                        $("#sessionStatusBar .videoName").html(`<a onclick="shell.openExternal('${url}')" href="#">${data.episode}</a>`);
+                        var url = richContent.url + "/episode/" + data.episode;
+                        $("#sessionStatusBar .videoName").html(`<a onclick="shell.openExternal('${url}')" href="#">Episode ${data.episode}</a>`);
                     } else if (data.episode) {
-                        $("#sessionStatusBar .videoName").text(data.episode);
+                        $("#sessionStatusBar .videoName").text("Episode " + data.episode);
+                    } else if (data.name) {
+                        $("#sessionStatusBar .videoName").text(data.name);
                     } else {
                         $("#sessionStatusBar .videoName").text(data.video);
                     }
 
-                    //Set Discord rich presence
+                    //Set video type
+                    if (data.type == "video") {
+                        $("#sessionStatusBar .videoTypeIcon").text("ondemand_video");
+                    } else if (data.type == "audio") {
+                        $("#sessionStatusBar .videoTypeIcon").text("audiotrack");
+                    } else {
+                        $("#sessionStatusBar .videoTypeIcon").text("play_arrow");
+                    }
+
+                    //Set Discord rich presence data and timestamps
                     var discordData = {
-                        details: "Watching " + (sessionDBCache.info.content || data.video),
-                        state: sessionDBCache.info.name,
+                        details: (data.type == "audio" ? "Listening to " : (data.type == "video" ? "Watching " : "Playing ")) + (sessionDBCache.info.content || data.name || data.video),
+                        state: (data.episode ? "Episode " + data.episode + " | " : "") + sessionDBCache.info.name,
                         assets: {
                             largeImage: 'red-sync-logo',
-                            largeText: 'Syncing VLC with Red'
+                            largeText: 'Syncing VLC playback with Red'
                         },
                         party: {
                             id: mySessionID,
                             currentSize: sessionDBCache.viewers | 0,
-                            maxSize: 10
+                            maxSize: sessionDBCache.viewers | 0
                         }
                     };
                     if (data.state && data.state.startsWith("play|")) {
@@ -396,8 +407,22 @@ function joinSession(id, accessCode) {
                             endAt: new Date((new Date().getTime() / 1000) + (data.length - calculatedTime))
                         };
                     }
-                    if ((sessionDBCache.info.content || data.video).toUpperCase().includes("RE:ZERO KARA HAJIMERU")) { discordData.assets.largeImage = "rezero"; discordData.assets.largeText = "Re:Zero"; }
-                    ipcRenderer.send("discord-activity", discordData);
+                    if (data.state && data.state.startsWith("pause|")) discordData.details = "[Paused] " + discordData.details;
+
+                    //Special discord gamesdk assets for cool awesome amazing content
+                    if (/(re|リ)(.|)(zero(\s|)kara(\s|)hajimeru|ゼロから始める)/gi.test(sessionDBCache.info.content || data.name || data.video)) { discordData.assets.largeImage = "rezero"; discordData.assets.largeText = "Re:Zero"; }
+                    if (/(fate|フェイト)(.|)(zero|ゼロ)/gi.test(sessionDBCache.info.content || data.name || data.video)) { discordData.assets.largeImage = "fate-zero"; discordData.assets.largeText = "Fate/Zero"; }
+                    if (/(death|デス)(.|)(note|ノート)/gi.test(sessionDBCache.info.content || data.name || data.video)) { discordData.assets.largeImage = "death-note"; discordData.assets.largeText = "Death Note"; }
+                    if (/(sword|ソード)(.|)(art|アート)(.|)(online|オンライン)/gi.test(sessionDBCache.info.content || data.name || data.video)) { discordData.assets.largeImage = "sword-art-online"; discordData.assets.largeText = "Sword Art Online"; }
+                    if (/(that time i got reincarnated as a slime)|((tensei|転生)(.|)(shitara|したら)(.|)(slime|suraimu|スライム)(.|)(datta|だった)(.|)(ken|件))/gi.test(sessionDBCache.info.content || data.name || data.video)) { discordData.assets.largeImage = "slime"; discordData.assets.largeText = "That Time I Got Reincarnated as a Slime"; }
+                    if (/savant - jester/gi.test(sessionDBCache.info.content || data.name || data.video)) { discordData.assets.largeImage = "jester"; discordData.assets.largeText = "Savant - Jester"; }
+                    if (/synthion - fairy tale/gi.test(sessionDBCache.info.content || data.name || data.video)) { discordData.assets.largeImage = "fairy-tale"; discordData.assets.largeText = "Synthion - Fairy Tale"; }
+                    if (/panda eyes - kiko/gi.test(sessionDBCache.info.content || data.name || data.video)) { discordData.assets.largeImage = "kiko"; discordData.assets.largeText = "Panda Eyes - Kiko"; }
+                    if (/teminite - unstoppable/gi.test(sessionDBCache.info.content || data.name || data.video)) { discordData.assets.largeImage = "unstoppable"; discordData.assets.largeText = "Teminite - Unstoppable EP"; }
+                    if (discordData.assets.largeImage !== "red-sync-logo") { discordData.assets.smallImage = "red-sync-logo"; discordData.assets.smallText = "Syncing VLC playback with Red"; }
+                    
+                    //Send discord data to main electron process for fancy DLL native stuff
+                    if (fluid.get("pref-discordSync") == "true") ipcRenderer.send("discord-activity", discordData);
 
                     //Set video time
                     $("#sessionStatusBar").show();
@@ -406,7 +431,7 @@ function joinSession(id, accessCode) {
                         //Set status
                         $("#syncStatus span").text("Syncing playback");
                         $("#sessionNavStatus span").text("Syncing");
-                        $("#syncDetails").text("The playback state of video you're playing in VLC is syncing to the viewers of this session");
+                        $("#syncDetails").text("The playback state of content you're playing in VLC is syncing to the viewers of this session");
                         $("#syncStatus i, #sessionNavStatus i").text("sync");
                         setUserStatus("hosting");
                         $('#syncControlsArea').show();
@@ -429,10 +454,10 @@ function joinSession(id, accessCode) {
                             } else if (!files.length && data.download) {
                                 //Video needs to be downloaded
                                 file = null;
-                                playerActionNeeded("Download video", [
-                                    `<p>This session has provided a download link for the video. <a onclick="shell.openExternal('${data.download}')" href="#">Click here</a> to open that link.</p>`,
-                                    `<p>When the video has downloaded, copy it, without renaming, in your videos folder at <a onclick="shell.openPath('${VIDEO_FOLDER.replace(/\\/g, "\\\\")}')" href="#" class="videoFolderPath">${VIDEO_FOLDER}</a>. If you want to keep it somewhere else, change your videos folder location in settings.</p>`,
-                                    `<p>Once the video is in your videos folder, click the button below to begin watching.</p>`
+                                playerActionNeeded("Download content", [
+                                    `<p>This session has provided a download link for the content being played. <a onclick="shell.openExternal('${data.download}')" href="#">Click here</a> to open that link.</p>`,
+                                    `<p>When the file has downloaded, copy it, without renaming, to one of the media folders that you've added to Red. If you want to keep it somewhere else, you can always add or remove media folders in settings.</p>`,
+                                    `<p>Once the file is in the folder, click the button below to begin.</p>`
                                 ].join(""), [
                                     {
                                         text: "Done",
@@ -448,8 +473,8 @@ function joinSession(id, accessCode) {
                                 //Video not found
                                 file = null;
                                 playerActionNeeded("Cannot find file", [
-                                    `<p>Red was unable to find the video file "${data.video}" in your videos folder at <a onclick="shell.openPath('${VIDEO_FOLDER.replace(/\\/g, "\\\\")}')" href="#" class="videoFolderPath">${VIDEO_FOLDER}</a>. Make sure you have the video in the correct folder and try again.</p>`,
-                                    `<p>If the video file is in a different folder, change your videos folder location in settings. If you do not have the video file, try asking the controller of this session for more information. You might not be able to participate in this session.</p>`
+                                    `<p>Red was unable to find the media file "${data.video}" in any of your configured media folders.</p>`,
+                                    `<p>Please double-check that the file you're trying to sync is in one of your media folders. Red will not be able to find the file if it has a different name than the controller's file, is not in a configured media folder, or if it is not the correct file type.</p>`
                                 ].join(""), [
                                     {
                                         text: "Try again",
@@ -464,7 +489,7 @@ function joinSession(id, accessCode) {
                             } else if (files.length > 1) {
                                 file = null;
                                 playerActionNeeded("File name conflict", [
-                                    `<p>Multiple files with the name "${data.video}" were found. Make sure you aren't renaming the file(s) and that the file names in your videos folder and subfolders are unique.</p>`,
+                                    `<p>Multiple files with the name "${data.video}" were found. Make sure you aren't renaming the file(s) and that the file names in your media folders and subfolders are unique.</p>`,
                                 ].join(""), [
                                     {
                                         text: "Try again",
@@ -650,21 +675,21 @@ function showPlayer(data) {
             //Set status
             $("#syncStatus span").text("Ready to play");
             $("#sessionNavStatus span").text("Ready");
-            $("#syncDetails").text("The controller is waiting for everyone else to get ready. Video playback will begin automatically.");
+            $("#syncDetails").text("The controller is waiting for everyone else to get ready. Playback will begin automatically.");
             $("#syncStatus i, #sessionNavStatus i").text("hourglass_full");
         } else {
             //Load video player
             if (data.state.startsWith("play|")) {
                 //Set status
-                $("#syncStatus span").text("Playing video");
+                $("#syncStatus span").text(data.type == "audio" ? "Playing audio" : (data.type == "video" ? "Playing video" : "Playing content"));
                 $("#sessionNavStatus span").text("Playing");
-                $("#syncDetails").text("The video is playing in VLC");
+                $("#syncDetails").text(data.type == "audio" ? "The audio is playing in VLC" : (data.type == "video" ? "The video is playing in VLC" : "The content is playing in VLC"));
                 $("#syncStatus i, #sessionNavStatus i").text("play_arrow");
             } else if (data.state.startsWith("pause|")) {
                 //Set status
-                $("#syncStatus span").text("Video paused");
+                $("#syncStatus span").text(data.type == "audio" ? "Audio paused" : (data.type == "video" ? "Video paused" : "Content paused"));
                 $("#sessionNavStatus span").text("Paused");
-                $("#syncDetails").text("The controller of this session has paused the video");
+                $("#syncDetails").text(data.type == "audio" ? "The controller of the session has paused the audio playback" : (data.type == "video" ? "The controller of the session has paused the video playback" : "The controller of the session has paused the playback"));
                 $("#syncStatus i, #sessionNavStatus i").text("pause");
             }
         }
@@ -680,10 +705,10 @@ function showPlayer(data) {
                     showPlayer(data);
                 } else if (files.length == 0) {
                     file = null;
-                    alert("The file was not found in your videos folder. Make sure you followed all of the steps correctly and try again.");
+                    alert("The file was not found in any of your media folders. Make sure you followed all of the steps correctly and try again.");
                 } else if (files.length > 1) {
                     file = null;
-                    alert(`Multiple files with the name "${data.video}" were found. Make sure you aren't renaming the file(s) and that the file names in your videos folder are unique.`);
+                    alert(`Multiple files with the name "${data.video}" were found. Make sure you aren't renaming the file(s) and that the file names in your media folders are unique.`);
                 }
             });
         }
@@ -772,7 +797,7 @@ function getSessions(list) {
                                         </div>
                                         ${sessionInfo.content ? `
                                             <div>
-                                                <i class="fluid-icon">movie</i>
+                                                <i class="fluid-icon">play_arrow</i>
                                                 <span>${sessionInfo.content}</span>
                                             </div>
                                         ` : ``}
